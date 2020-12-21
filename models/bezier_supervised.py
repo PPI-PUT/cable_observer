@@ -74,22 +74,11 @@ class Decoder(tf.keras.Model):
 class CableNetwork(tf.keras.Model):
     def __init__(self):
         super(CableNetwork, self).__init__()
-        self.features = [
-            tf.keras.layers.Conv2D(16, 3, padding='same', activation=tf.keras.activations.tanh),
-            tf.keras.layers.MaxPool2D(),
-            tf.keras.layers.Conv2D(32, 3, padding='same', activation=tf.keras.activations.tanh),
-            #tf.keras.layers.MaxPool2D(),
-            #tf.keras.layers.Conv2D(64, 3, padding='same', activation=tf.keras.activations.tanh),
-            #tf.keras.layers.MaxPool2D(),
-            #tf.keras.layers.Conv2D(128, 3, padding='same', activation=tf.keras.activations.tanh),
-            #tf.keras.layers.MaxPool2D(),
-            #tf.keras.layers.Conv2D(256, 3, padding='same', activation=tf.keras.activations.tanh),
-            #tf.keras.layers.MaxPool2D(),
-            #tf.keras.layers.Conv2D(512, 3, padding='same', activation=tf.keras.activations.tanh),
-        ]
+        self.encoder = Encoder()
 
         self.fc = [
             #tf.keras.layers.Dense(1024, activation=tf.keras.activations.tanh),
+            tf.keras.layers.Dense(256, activation=tf.keras.activations.tanh),
             tf.keras.layers.Dense(256, activation=tf.keras.activations.tanh),
             tf.keras.layers.Dense(2 * (N + 1), activation=lambda x: tf.keras.activations.sigmoid(x)),
         ]
@@ -97,9 +86,8 @@ class CableNetwork(tf.keras.Model):
 
     def call(self, x):
         bs = x.shape[0]
-        for layer in self.features:
-            x = layer(x)
-        x = tf.reshape(x, (bs, -1))
+        x = self.encoder(x)
+        #x = tf.reshape(x, (bs, -1))
         for layer in self.fc:
             x = layer(x)
         uv = tf.reshape(x, (-1, N + 1, 2))
