@@ -94,24 +94,19 @@ def get_linespaces(paths_length, paths_points_num, gaps_length, T_scale=128):
     paths_points_num_scaled = (np.array(paths_points_num) * T_scale / np.sum(np.array(paths_points_num))).astype(
         int).tolist()
     t_linespaces = []
-    T_linespaces = []
     curr_value = 0
     for key, value in enumerate(paths_length):
         t_linespace = np.linspace(curr_value, curr_value + value / all_length, paths_points_num[key])
-        T_linespace = np.linspace(curr_value, curr_value + value / all_length, paths_points_num_scaled[key])
         curr_value += value / all_length
         if key < len(gaps_length):
             curr_value += gaps_length[key] / all_length
         t_linespaces.append(t_linespace)
-        T_linespaces.append(T_linespace)
-        pass
 
     # t = np.linspace(0., 1., xys.shape[0])
     # T = np.linspace(0., 1., 128)
     t = np.hstack(t_linespaces)
-    T = np.hstack(T_linespaces)
 
-    return t, T
+    return t
 
 def walk(img, skel, start, r, d):
     path = [start]
@@ -220,28 +215,21 @@ merged_paths, paths_length, gaps_length, paths_points_num = merge_paths(paths, p
 print(merged_paths)
 print(paths_length)
 t2 = time()
-# print(paths)
 print(t2 - t1)
-# path = path[:10] + path[20:]
 xys = np.stack(merged_paths, axis=0)
 
-t, T = get_linespaces(paths_length, paths_points_num, gaps_length)
-# t = np.linspace(0., 1., xys.shape[0])
-# T = np.linspace(0., 1., 128)
-k = 10
+t = get_linespaces(paths_length, paths_points_num, gaps_length)
+T = np.linspace(0., 1., 128)
+k = 7
 knots = np.linspace(0., 1., k)[1:-1]
-# k = 1
-# k = 100
-# x_spline = UnivariateSpline(t, xys[:, 0], s=k)
-# x_spline = make_lsq_spline(t, xys[:, 0], knots)
 x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
-# y_spline = UnivariateSpline(t, xys[:, 1], s=k)
-# y_spline = make_lsq_spline(t, xys[:, 1], knots)
+#x_p = np.polyfit(t, xys[:, 0], k)
 y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
-# print(x_spline.get_coeffs())
-# print(y_spline.get_coeffs())
+#y_p = np.polyfit(t, xys[:, 1], k)
 x = x_spline(T)
 y = y_spline(T)
+#x = np.polyval(x_p, T)
+#y = np.polyval(y_p, T)
 t3 = time()
 print(t3 - t1)
 plt.plot(x, y, 'g')
