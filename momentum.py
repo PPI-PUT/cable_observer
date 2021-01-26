@@ -166,6 +166,43 @@ def walk(img, skel, start, r, d):
         path.append((aim[1], aim[0]))
     return path
 
+def walk_fast(skel, start):
+    path = [(int(start[1]), int(start[0]))]
+    colors = ['r', 'g', 'b']
+    dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
+    dxy = np.stack(dxy, axis=-1)
+    dxy = dxy[:, :, ::-1]
+    card = 1
+    i = 0
+    while card > 0:
+        act = path[-1]
+
+        skel[act[0], act[1]] = 0.
+        if len(path) > 3:
+            skel[path[-4][0], path[-4][1]] = 1.
+
+        patch = skel[act[0] - 1: act[0] + 2, act[1] - 1: act[1] + 2]
+        xy = dxy + act
+        b = xy[patch]
+        card = b.shape[0]
+        if card == 1:
+            aim = b[0].astype(np.int32)
+        elif card > 1:
+            v = np.array(act) - np.array(path[-5])
+            dir = v / np.linalg.norm(v)
+            new = np.array(act) + dir
+            dists = np.linalg.norm(new - b, axis=-1)
+            min_idx = np.argmin(dists)
+            aim = b[min_idx].astype(np.int32)
+        else:
+            break
+
+        # plt.plot([start[0], aim[1]], [start[1], aim[0]], 'b')
+        plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
+        path.append((aim[0], aim[1]))
+        i += 1
+    return path
+
 
 # img = plt.imread("a1.png")[..., 0]
 # start = (156, 324)
@@ -202,7 +239,8 @@ path_ends_workspace = path_ends.copy()
 t1 = time()
 
 while len(path_ends_workspace) > 0:
-    path = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+    #path = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+    path = walk_fast(skel, tuple(path_ends_workspace[0]))
     path_length = 0.0
     for key, value in enumerate(path[:-2]):
         path_length += np.linalg.norm(np.subtract(path[key], path[key + 1]))

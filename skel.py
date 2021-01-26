@@ -54,7 +54,7 @@ while card > 0:
         break
 
     #plt.plot([start[0], aim[1]], [start[1], aim[0]], 'b')
-    plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
+    #plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
     path.append((aim[0], aim[1]))
     i += 1
 t2 = time()
