@@ -101,10 +101,7 @@ def get_linespaces(paths_length, paths_points_num, gaps_length, T_scale=128):
             curr_value += gaps_length[key] / all_length
         t_linespaces.append(t_linespace)
         T_linespaces.append(T_linespace)
-        pass
 
-    #t = np.linspace(0., 1., xys.shape[0])
-    #T = np.linspace(0., 1., 128)
     t = np.hstack(t_linespaces)
     T = np.hstack(T_linespaces)
 
