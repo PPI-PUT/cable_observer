@@ -1,5 +1,6 @@
 from time import time
 import sys
+from copy import deepcopy
 from scipy.interpolate import LSQUnivariateSpline
 from skimage.morphology import skeletonize, medial_axis
 
@@ -43,67 +44,82 @@ def remove_close_points(last_point, path_ends_c, max_px_gap=10):
     path_ends_c = np.delete(np.array(path_ends_c), keys_to_remove, axis=0)
     return path_ends_c.tolist()
 
-
-# TODO
-def merge_paths(paths_c, paths_length):
-    merged_path = []
+def merge_paths(paths_c):
     best_connections = []
     for key, value in enumerate(paths_c):
         for key2, value2 in enumerate(paths_c[key + 1:]):
-            connection = {}
-            distance = sys.maxsize
-            if np.linalg.norm(np.subtract(value[0], value2[0])) < distance:
-                distance = np.linalg.norm(np.subtract(value[0], value2[0]))
-                connection = {"gap_length": distance, "key_1": key, "key_2": key + 1 + key2,
-                              "idx_1": 0, "idx_2": 0}
-            if np.linalg.norm(np.subtract(value[0], value2[-1])) < distance:
-                distance = np.linalg.norm(np.subtract(value[0], value2[-1]))
-                connection = {"gap_length": distance, "key_1": key, "key_2": key + 1 + key2,
-                              "idx_1": 0, "idx_2": -1}
-            if np.linalg.norm(np.subtract(value[-1], value2[0])) < distance:
-                distance = np.linalg.norm(np.subtract(value[-1], value2[0]))
-                connection = {"gap_length": distance, "key_1": key, "key_2": key + 1 + key2,
-                              "idx_1": -1, "idx_2": 0}
-            if np.linalg.norm(np.subtract(value[-1], value2[-1])) < distance:
-                distance = np.linalg.norm(np.subtract(value[-1], value2[-1]))
-                connection = {"gap_length": distance, "key_1": key, "key_2": key + 1 + key2,
-                              "idx_1": -1, "idx_2": -1}
-            best_connections.append(connection)
+            connections = []
+
+            # Calculate gap length between two paths (begins and ends)
+            gap_length = np.linalg.norm(np.subtract(value['coords'][0], value2['coords'][0]))
+            connections.append({"gap_length": gap_length, "keys": [key, key + 1 + key2]})
+            gap_length = np.linalg.norm(np.subtract(value['coords'][0], value2['coords'][-1]))
+            connections.append({"gap_length": gap_length, "keys": [key, key + 1 + key2]})
+            gap_length = np.linalg.norm(np.subtract(value['coords'][-1], value2['coords'][0]))
+            connections.append({"gap_length": gap_length, "keys": [key, key + 1 + key2]})
+            gap_length = np.linalg.norm(np.subtract(value['coords'][-1], value2['coords'][-1]))
+            connections.append({"gap_length": gap_length, "keys": [key, key + 1 + key2]})
+
+            # Chose best connection - shortest gap
+            best_connection = min(connections, key=lambda k: k['gap_length'])
+            best_connections.append(best_connection)
+
+    # Sort connections between paths by shortest gaps
     best_connections = sorted(best_connections, key=lambda k: k['gap_length'])
-    best_connections = best_connections[:len(best_connections) - 1]
 
-    # TODO
-    # HERE HARD CODED FOR TESTS
-    # for connection in best_connections:
-    paths_c[2].reverse()
-    merged_path.append(paths_c[2])
-    paths_c[0].reverse()
-    merged_path.append(paths_c[0])
-    merged_path.append(paths_c[1])
-    merged_path = np.array(merged_path, dtype=object)
-    merged_path = np.vstack(merged_path)
+    # Get rid of unnecessary connections -> with N paths there is always N - 1 connections
+    best_connections = best_connections[:len(paths_c) - 1]
 
-    paths_length = [paths_length[2], paths_length[0], paths_length[1]]
-    gaps_length = [best_connections[1]['gap_length'], best_connections[0]['gap_length']]
-    paths_points_num = [len(paths_c[2]), len(paths_c[0]), len(paths_c[1])]
-    return merged_path.tolist(), paths_length, gaps_length, paths_points_num
+    # Find first path with a single connection
+    paths_keys_order = []
+    keys = np.hstack([d['keys'] for d in best_connections])
+    for key in range(len(paths_c)):
+        if np.sum(keys == key) == 1:
+            paths_keys_order.append(key)
+            break
+
+    # Find paths & connections order
+    best_connections_workspace = deepcopy(best_connections)
+    best_connections_lengths_ordered = []
+    while len(best_connections_workspace) > 0:
+        for key, value in enumerate(best_connections_workspace):
+            if paths_keys_order[-1] in best_connections_workspace[key]['keys']:
+                best_connections_workspace[key]['keys'].remove(paths_keys_order[-1])
+                paths_keys_order.append(value['keys'][0])
+                best_connections_lengths_ordered.append(best_connections_workspace.pop(key)['gap_length'])
+                break
+
+    # Reorder paths
+    ordered_paths = [paths_c[i] for i in paths_keys_order]
+
+    # Merge & flip paths
+    merged_paths = [ordered_paths[0]['coords']]
+    for key, value in enumerate([d['coords'] for d in ordered_paths][1:]):
+        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(np.subtract(merged_paths[-1][0], value[0])):
+            merged_paths[-1] = np.flip(merged_paths[-1], axis=0).tolist()
+        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(np.subtract(merged_paths[-1][-1], value[-1])):
+            merged_paths.append(np.flip(value, axis=0).tolist())
+        else:
+            merged_paths.append(value)
+
+    merged_paths = np.vstack(np.array(merged_paths, dtype=object))
+
+    return ordered_paths, merged_paths.tolist(), best_connections_lengths_ordered
 
 
-def get_linespaces(paths_length, paths_points_num, gaps_length, T_scale=128):
-    all_length = np.sum(paths_length) + np.sum(gaps_length)
-    paths_points_num_scaled = (np.array(paths_points_num) * T_scale / np.sum(np.array(paths_points_num))).astype(
-        int).tolist()
+def get_linespaces(ordered_paths, gaps_length):
+    full_length = np.sum([d["length"] for d in ordered_paths]) + np.sum(gaps_length)
+    #paths_points_num_scaled = (np.array([d["num_points"] for d in ordered_paths]) * T_scale / np.sum(np.array(ordered_paths["num_points"])))\
+    #    .astype(int).tolist()
     t_linespaces = []
     curr_value = 0
-    for key, value in enumerate(paths_length):
-        t_linespace = np.linspace(curr_value, curr_value + value / all_length, paths_points_num[key])
-        curr_value += value / all_length
+    for key, value in enumerate([d["length"] for d in ordered_paths]):
+        t_linespace = np.linspace(curr_value, curr_value + value / full_length, [d["num_points"] for d in ordered_paths][key])
+        curr_value += value / full_length
         if key < len(gaps_length):
-            curr_value += gaps_length[key] / all_length
+            curr_value += gaps_length[key] / full_length
         t_linespaces.append(t_linespace)
 
-    # t = np.linspace(0., 1., xys.shape[0])
-    # T = np.linspace(0., 1., 128)
     t = np.hstack(t_linespaces)
 
     return t
@@ -203,79 +219,129 @@ def walk_fast(skel, start):
         i += 1
     return path
 
+if __name__ == "__main__":
+    #img = plt.imread("test_v2.png")
+    img = plt.imread("test_v3.png")
+    #img = plt.imread("test_v4.png")
+    #img = plt.imread("test_v5.png")
+    #img = plt.imread("test_v6.png")
+    plt.subplot(121)
+    plt.imshow(img)
 
-# img = plt.imread("a1.png")[..., 0]
-# start = (156, 324)
-img = plt.imread("test_v3.png")
-# img = plt.imread("test1.png")[..., 0]
-start = (140, 103)
-# start = (218, 154)
-# img = plt.imread("0019.png")#[..., 0]
-# img = plt.imread("zgiecie.png")#[..., 0]
-# start = (304, 242)
-# start = (286, 223)
-# img = plt.imread("u.png")#[..., 0]
-# img = plt.imread("u_hard.png")#[..., 0]
-# start = (62, 117)
+    skel = skeletonize(img)
+    path_ends = find_ends(img=skel, max_px_gap=5)
+    path_ends_workspace = path_ends.copy()
+
+    paths = []
+    #paths_length = []
+
+    while len(path_ends_workspace) > 0:
+        path = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+        #path = walk_fast(skel, tuple(path_ends_workspace[0]))
+        path_length = 0.0
+        for key, value in enumerate(path[:-2]):
+            path_length += np.linalg.norm(np.subtract(path[key], path[key + 1]))
+        #paths_length.append(path_length)
+        paths.append({"coords": path, "num_points": len(path), "length": path_length})
+        path_ends_workspace.pop(0)
+        path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
+
+    ordered_paths, merged_paths, gaps_length = merge_paths(paths)
+
+    xys = np.stack(merged_paths, axis=0)
+    t = get_linespaces(ordered_paths, gaps_length)
+    T = np.linspace(0., 1., 128)
+
+    k = 7
+    knots = np.linspace(0., 1., k)[1:-1]
+    x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
+    y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
+    x = x_spline(T)
+    y = y_spline(T)
+
+    plt.plot(x, y, 'g')
+    plt.subplot(122)
+    plt.plot(T, x, label="x")
+    plt.plot(t, xys[:, 0], 'x', label="px")
+    plt.plot(T, y, label="y")
+    plt.plot(t, xys[:, 1], 'x', label="py")
+    plt.legend()
+    plt.show()
+
+
+#
+# # img = plt.imread("a1.png")[..., 0]
+# # start = (156, 324)
+# img = plt.imread("test_v3.png")
+# # img = plt.imread("test1.png")[..., 0]
+# start = (140, 103)
+# # start = (218, 154)
+# # img = plt.imread("0019.png")#[..., 0]
+# # img = plt.imread("zgiecie.png")#[..., 0]
+# # start = (304, 242)
+# # start = (286, 223)
+# # img = plt.imread("u.png")#[..., 0]
+# # img = plt.imread("u_hard.png")#[..., 0]
+# # start = (62, 117)
+# # plt.imshow(img)
+# # plt.show()
+# skel = skeletonize(img)
+#
+# t_start = time()
+#
+# path_ends = find_ends(img=skel, max_px_gap=5)
+# print(path_ends)
+#
+# t_duration = time() - t_start
+# print("Find ends duration: ", t_duration)
+#
+# plt.subplot(121)
 # plt.imshow(img)
+# # plt.plot(start[0], start[1], 'rx')
+#
+# paths = []
+# paths_length = []
+# path_ends_workspace = path_ends.copy()
+# t1 = time()
+#
+# while len(path_ends_workspace) > 0:
+#     path = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+#     #path = walk_fast(skel, tuple(path_ends_workspace[0]))
+#     path_length = 0.0
+#     for key, value in enumerate(path[:-2]):
+#         path_length += np.linalg.norm(np.subtract(path[key], path[key + 1]))
+#     paths_length.append(path_length)
+#     paths.append(path)
+#     path_ends_workspace.pop(0)
+#     path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
+#
+# merged_paths, paths_length, gaps_length, paths_points_num = merge_paths(paths, paths_length)
+# print(merged_paths)
+# print(paths_length)
+# t2 = time()
+# print(t2 - t1)
+# xys = np.stack(merged_paths, axis=0)
+#
+# t = get_linespaces(paths_length, paths_points_num, gaps_length)
+# T = np.linspace(0., 1., 128)
+# k = 7
+# knots = np.linspace(0., 1., k)[1:-1]
+# x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
+# #x_p = np.polyfit(t, xys[:, 0], k)
+# y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
+# #y_p = np.polyfit(t, xys[:, 1], k)
+# x = x_spline(T)
+# y = y_spline(T)
+# #x = np.polyval(x_p, T)
+# #y = np.polyval(y_p, T)
+# t3 = time()
+# print(t3 - t1)
+# plt.plot(x, y, 'g')
+# plt.subplot(122)
+# plt.plot(T, x, label="x")
+# plt.plot(t, xys[:, 0], 'x', label="px")
+# plt.plot(T, y, label="y")
+# plt.plot(t, xys[:, 1], 'x', label="py")
+# plt.legend()
+#
 # plt.show()
-skel = skeletonize(img)
-
-t_start = time()
-
-path_ends = find_ends(img=skel, max_px_gap=5)
-print(path_ends)
-
-t_duration = time() - t_start
-print("Find ends duration: ", t_duration)
-
-plt.subplot(121)
-plt.imshow(img)
-# plt.plot(start[0], start[1], 'rx')
-
-paths = []
-paths_length = []
-path_ends_workspace = path_ends.copy()
-t1 = time()
-
-while len(path_ends_workspace) > 0:
-    #path = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
-    path = walk_fast(skel, tuple(path_ends_workspace[0]))
-    path_length = 0.0
-    for key, value in enumerate(path[:-2]):
-        path_length += np.linalg.norm(np.subtract(path[key], path[key + 1]))
-    paths_length.append(path_length)
-    paths.append(path)
-    path_ends_workspace.pop(0)
-    path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
-
-merged_paths, paths_length, gaps_length, paths_points_num = merge_paths(paths, paths_length)
-print(merged_paths)
-print(paths_length)
-t2 = time()
-print(t2 - t1)
-xys = np.stack(merged_paths, axis=0)
-
-t = get_linespaces(paths_length, paths_points_num, gaps_length)
-T = np.linspace(0., 1., 128)
-k = 7
-knots = np.linspace(0., 1., k)[1:-1]
-x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
-#x_p = np.polyfit(t, xys[:, 0], k)
-y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
-#y_p = np.polyfit(t, xys[:, 1], k)
-x = x_spline(T)
-y = y_spline(T)
-#x = np.polyval(x_p, T)
-#y = np.polyval(y_p, T)
-t3 = time()
-print(t3 - t1)
-plt.plot(x, y, 'g')
-plt.subplot(122)
-plt.plot(T, x, label="x")
-plt.plot(t, xys[:, 0], 'x', label="px")
-plt.plot(T, y, label="y")
-plt.plot(t, xys[:, 1], 'x', label="py")
-plt.legend()
-
-plt.show()
