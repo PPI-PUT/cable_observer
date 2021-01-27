@@ -44,6 +44,7 @@ def remove_close_points(last_point, path_ends_c, max_px_gap=10):
     path_ends_c = np.delete(np.array(path_ends_c), keys_to_remove, axis=0)
     return path_ends_c.tolist()
 
+
 def merge_paths(paths_c):
     best_connections = []
     for key, value in enumerate(paths_c):
@@ -95,9 +96,11 @@ def merge_paths(paths_c):
     # Merge & flip paths
     merged_paths = [ordered_paths[0]['coords']]
     for key, value in enumerate([d['coords'] for d in ordered_paths][1:]):
-        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(np.subtract(merged_paths[-1][0], value[0])):
+        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(
+                np.subtract(merged_paths[-1][0], value[0])):
             merged_paths[-1] = np.flip(merged_paths[-1], axis=0).tolist()
-        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(np.subtract(merged_paths[-1][-1], value[-1])):
+        if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(
+                np.subtract(merged_paths[-1][-1], value[-1])):
             merged_paths.append(np.flip(value, axis=0).tolist())
         else:
             merged_paths.append(value)
@@ -109,12 +112,13 @@ def merge_paths(paths_c):
 
 def get_linespaces(ordered_paths, gaps_length):
     full_length = np.sum([d["length"] for d in ordered_paths]) + np.sum(gaps_length)
-    #paths_points_num_scaled = (np.array([d["num_points"] for d in ordered_paths]) * T_scale / np.sum(np.array(ordered_paths["num_points"])))\
+    # paths_points_num_scaled = (np.array([d["num_points"] for d in ordered_paths]) * T_scale / np.sum(np.array(ordered_paths["num_points"])))\
     #    .astype(int).tolist()
     t_linespaces = []
     curr_value = 0
     for key, value in enumerate([d["length"] for d in ordered_paths]):
-        t_linespace = np.linspace(curr_value, curr_value + value / full_length, [d["num_points"] for d in ordered_paths][key])
+        t_linespace = np.linspace(curr_value, curr_value + value / full_length,
+                                  [d["num_points"] for d in ordered_paths][key])
         curr_value += value / full_length
         if key < len(gaps_length):
             curr_value += gaps_length[key] / full_length
@@ -122,6 +126,7 @@ def get_linespaces(ordered_paths, gaps_length):
 
     t = np.hstack(t_linespaces)
     return t
+
 
 def walk(img, skel, start, r, d):
     path = [start]
@@ -183,6 +188,7 @@ def walk(img, skel, start, r, d):
         path.append((aim[1], aim[0]))
     return path, length
 
+
 def walk_fast(skel, start):
     length = 0
     path = [(int(start[1]), int(start[0]))]
@@ -222,12 +228,13 @@ def walk_fast(skel, start):
         i += 1
     return path, length
 
+
 if __name__ == "__main__":
-    #img = plt.imread("test_v2.png")
+    # img = plt.imread("test_v2.png")
     img = plt.imread("test_v3.png")
-    #img = plt.imread("test_v4.png")
-    #img = plt.imread("test_v5.png")
-    #img = plt.imread("test_v6.png")
+    # img = plt.imread("test_v4.png")
+    # img = plt.imread("test_v5.png")
+    # img = plt.imread("test_v6.png")
     plt.subplot(121)
     plt.imshow(img)
 
@@ -236,11 +243,11 @@ if __name__ == "__main__":
     path_ends_workspace = path_ends.copy()
 
     paths = []
-    #paths_length = []
+    # paths_length = []
 
     while len(path_ends_workspace) > 0:
-        #path, length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
-        path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]))
+        path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+        #path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]))
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
         path_ends_workspace.pop(0)
         path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
