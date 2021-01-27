@@ -246,11 +246,13 @@ if __name__ == "__main__":
     # paths_length = []
 
     while len(path_ends_workspace) > 0:
-        path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
-        #path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]))
+        #path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+        path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]))
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
         path_ends_workspace.pop(0)
         path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
+
+    paths = [p for p in paths if len(p['coords']) > 1]
 
     ordered_paths, merged_paths, gaps_length = merge_paths(paths)
 
@@ -260,16 +262,16 @@ if __name__ == "__main__":
 
     k = 7
     knots = np.linspace(0., 1., k)[1:-1]
-    x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
-    y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
+    x_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
+    y_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
     x = x_spline(T)
     y = y_spline(T)
 
     plt.plot(x, y, 'g')
     plt.subplot(122)
     plt.plot(T, x, label="x")
-    plt.plot(t, xys[:, 0], 'x', label="px")
+    plt.plot(t, xys[:, 1], 'x', label="px")
     plt.plot(T, y, label="y")
-    plt.plot(t, xys[:, 1], 'x', label="py")
+    plt.plot(t, xys[:, 0], 'x', label="py")
     plt.legend()
     plt.show()
