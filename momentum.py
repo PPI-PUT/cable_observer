@@ -222,8 +222,7 @@ def walk_fast(skel, start):
             break
 
         length += np.linalg.norm(np.array(act) - np.array(aim))
-        # plt.plot([start[0], aim[1]], [start[1], aim[0]], 'b')
-        plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
+        #plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
         path.append((aim[0], aim[1]))
         i += 1
     return path, length
@@ -238,8 +237,11 @@ if __name__ == "__main__":
     plt.subplot(121)
     plt.imshow(img)
 
+    t1 = time()
     skel = skeletonize(img)
+    t2 = time()
     path_ends = find_ends(img=skel, max_px_gap=5)
+    t3 = time()
     path_ends_workspace = path_ends.copy()
 
     paths = []
@@ -253,8 +255,10 @@ if __name__ == "__main__":
         path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
 
     paths = [p for p in paths if len(p['coords']) > 1]
+    t4 = time()
 
     ordered_paths, merged_paths, gaps_length = merge_paths(paths)
+    t5 = time()
 
     xys = np.stack(merged_paths, axis=0)
     t = get_linespaces(ordered_paths, gaps_length)
@@ -266,6 +270,14 @@ if __name__ == "__main__":
     y_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
     x = x_spline(T)
     y = y_spline(T)
+    t6 = time()
+
+    print("SKELETONIZE:", t2 - t1)
+    print("FIND ENDS:", t3 - t2)
+    print("WALK:", t4 - t3)
+    print("MERGE:", t5 - t4)
+    print("FIT SPLINE:", t6 - t5)
+    print("SUM:", t6 - t1)
 
     plt.plot(x, y, 'g')
     plt.subplot(122)
