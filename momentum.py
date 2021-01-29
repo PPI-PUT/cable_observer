@@ -1,9 +1,9 @@
-from time import time
+from time import time, sleep
 import sys
 from copy import deepcopy
 from scipy.interpolate import LSQUnivariateSpline
-from skimage.morphology import skeletonize, medial_axis
-
+from skimage.morphology import skeletonize, medial_axis, erosion, dilation, square
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -74,6 +74,7 @@ def merge_paths(paths_c):
     # Find first path with a single connection
     paths_keys_order = []
     keys = np.hstack([d['keys'] for d in best_connections])
+
     for key in range(len(paths_c)):
         if np.sum(keys == key) == 1:
             paths_keys_order.append(key)
@@ -212,7 +213,7 @@ def walk_fast(skel, start):
         if card == 1:
             aim = b[0].astype(np.int32)
         elif card > 1:
-            v = np.array(act) - np.array(path[-5])
+            v = np.array(act) - np.array(path[-min(5, len(path))])
             dir = v / np.linalg.norm(v)
             new = np.array(act) + dir
             dists = np.linalg.norm(new - b, axis=-1)
@@ -227,17 +228,21 @@ def walk_fast(skel, start):
         i += 1
     return path, length
 
-
-if __name__ == "__main__":
+def main(img):
     # img = plt.imread("test_v2.png")
-    img = plt.imread("test_v3.png")
+    # img = plt.imread("test_v3.png")
     # img = plt.imread("test_v4.png")
     # img = plt.imread("test_v5.png")
     # img = plt.imread("test_v6.png")
-    plt.subplot(121)
-    plt.imshow(img)
+    # plt.subplot(121)
+    # plt.imshow(img)
 
     t1 = time()
+    img = erosion(img)
+    img = dilation(img)
+    img = dilation(img)
+    img = dilation(img)
+    img = dilation(img)
     skel = skeletonize(img)
     t2 = time()
     path_ends = find_ends(img=skel, max_px_gap=5)
@@ -245,7 +250,6 @@ if __name__ == "__main__":
     path_ends_workspace = path_ends.copy()
 
     paths = []
-    # paths_length = []
 
     while len(path_ends_workspace) > 0:
         #path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
@@ -257,13 +261,16 @@ if __name__ == "__main__":
     paths = [p for p in paths if len(p['coords']) > 1]
     t4 = time()
 
-    ordered_paths, merged_paths, gaps_length = merge_paths(paths)
+    if len(paths) > 1:
+        ordered_paths, merged_paths, gaps_length = merge_paths(paths)
+        xys = np.stack(merged_paths, axis=0)
+        t = get_linespaces(ordered_paths, gaps_length)
+    else:
+        xys = np.stack(paths[0]['coords'], axis=0)
+        t = np.linspace(0., 1., xys.shape[0])
+
     t5 = time()
-
-    xys = np.stack(merged_paths, axis=0)
-    t = get_linespaces(ordered_paths, gaps_length)
     T = np.linspace(0., 1., 128)
-
     k = 7
     knots = np.linspace(0., 1., k)[1:-1]
     x_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
@@ -272,18 +279,49 @@ if __name__ == "__main__":
     y = y_spline(T)
     t6 = time()
 
-    print("SKELETONIZE:", t2 - t1)
-    print("FIND ENDS:", t3 - t2)
-    print("WALK:", t4 - t3)
-    print("MERGE:", t5 - t4)
-    print("FIT SPLINE:", t6 - t5)
+    #print("SKELETONIZE:", t2 - t1)
+    #print("FIND ENDS:", t3 - t2)
+    #print("WALK:", t4 - t3)
+    #print("MERGE:", t5 - t4)
+    #print("FIT SPLINE:", t6 - t5)
     print("SUM:", t6 - t1)
 
-    plt.plot(x, y, 'g')
-    plt.subplot(122)
-    plt.plot(T, x, label="x")
-    plt.plot(t, xys[:, 1], 'x', label="px")
-    plt.plot(T, y, label="y")
-    plt.plot(t, xys[:, 0], 'x', label="py")
-    plt.legend()
-    plt.show()
+    # plt.plot(x, y, 'g')
+    # plt.subplot(122)
+    # plt.plot(T, x, label="x")
+    # plt.plot(t, xys[:, 1], 'x', label="px")
+    # plt.plot(T, y, label="y")
+    # plt.plot(t, xys[:, 0], 'x', label="py")
+    # plt.legend()
+    # plt.show()
+    return x, y
+
+def get_spline(x, y, width, height):
+    spline_frame = np.zeros(shape=(height, width))
+    spline_frame[tuple(x.astype(int)), tuple(y.astype(int))] = 1
+    return spline_frame
+
+if __name__ == "__main__":
+    cap = cv2.VideoCapture(6)
+    # Skip blank frames
+    for i in range(100):
+        ret, frame = cap.read()
+
+    while True:
+        ret, frame = cap.read()
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        o = np.ones_like(hsv)[..., 0].astype(np.float32)
+        z = np.zeros_like(o)
+        img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 7., hsv[..., 0] > 170.), hsv[..., 1] > 120), o, z)
+
+        x, y = main(img)
+
+        spline_frame = get_spline(x=y, y=x, width=640, height=480)
+        cv2.imshow('spline', spline_frame)
+
+        cv2.imshow('frame', img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+           break
+
+    cap.release()
+    cv2.destroyAllWindows()
