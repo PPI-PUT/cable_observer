@@ -1,8 +1,11 @@
+import os
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import numpy as np
 from time import time
 import matplotlib.pyplot as plt
 import cv2
 import tensorflow as tf
+from skimage.morphology import skeletonize, medial_axis
 
 from models.observer_bezier import Cable, curve_loss, _plot
 
@@ -36,9 +39,10 @@ class CameraReader:
         img = tf.where(tf.logical_and(tf.logical_or(hsv[..., 0] < 15., hsv[..., 0] > 170.), hsv[..., 1] > 50), o, z)
         s = img
         # erode to get less points
-        img = \
-        tf.nn.erosion2d(img[tf.newaxis, ..., tf.newaxis], tf.zeros((3, 3, 1)), strides=[1, 1, 1, 1], padding="SAME",
-                        data_format="NHWC", dilations=[1, 1, 1, 1])[0, ..., 0]
+        #img = \
+        #tf.nn.erosion2d(img[tf.newaxis, ..., tf.newaxis], tf.zeros((3, 3, 1)), strides=[1, 1, 1, 1], padding="SAME",
+                        #data_format="NHWC", dilations=[1, 1, 1, 1])[0, ..., 0]
+        img = skeletonize(img.numpy())
         # img = (img - np.min(img)) / (np.max(img) - np.min(img))
         if plot:
             plt.subplot(1, 3, 1)
@@ -62,8 +66,8 @@ class CameraReader:
 
     def track_img(self, iterations=5, coarse=False):
         """Optimize actual Bezier curve to match new image readings for a number of iterations"""
-        t0 = time()
         for epoch in range(iterations):
+            t0 = time()
             with tf.GradientTape(persistent=True) as tape:
                 t1 = time()
                 curve = self.model(None)
@@ -83,7 +87,7 @@ class CameraReader:
             # print("GRAD:", t4 - t3)
             # print("OPT:", t5 - t4)
             #print(model_loss)
-            # print("ADJUST:", t6 - t0)
+            print("ADJUST:", t5 - t0)
         output_img = _plot(u, v, self.data, curve.numpy())
 
         #plt.subplot(1, 2, 1)
