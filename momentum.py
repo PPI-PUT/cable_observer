@@ -9,10 +9,22 @@ import matplotlib.pyplot as plt
 
 
 def find_ends(img, max_px_gap):
+    """
+    Find the ends of paths assuming that each end has one neighbor.
+    :param img: skeletonized paths
+    :type img: np.ndarray
+    :param max_px_gap: maximum pixel gap between paths ends in terms of remove similar points
+    :type max_px_gap: int
+    :return: all coordinates with a single neighbor
+    :rtype: list
+    """
+    # Add border to image frame
+    img = np.pad(img, pad_width=1, mode='constant', constant_values=0)
+
     # Find all coordinates with less than 2 neighbors
     path_indices = np.nonzero(img)
     path_indices = np.vstack((path_indices[0], path_indices[1])).T
-    path_ends_c = np.empty((0, 2))
+    path_ends_workspace = np.empty((0, 2))
     for current_cord in path_indices:
         neighbors = 0
         for i in range(-1, 2):
@@ -22,27 +34,37 @@ def find_ends(img, max_px_gap):
                 if img[current_cord[0] + i, current_cord[1] + j]:
                     neighbors += 1
         if neighbors < 2:
-            path_ends_c = np.append(path_ends_c, [np.flip(current_cord)], axis=0)
+            path_ends_workspace = np.append(path_ends_workspace, [np.flip(current_cord)], axis=0)
 
     # Skip similar coordinates using maximum gap between points
     keys_to_skip = []
-    for key, value in enumerate(path_ends_c):
-        for current_cord in path_ends_c[key + 1:]:
+    for key, value in enumerate(path_ends_workspace):
+        for current_cord in path_ends_workspace[key + 1:]:
             if (np.fabs(current_cord - value) <= max_px_gap).all():
                 keys_to_skip.append(key)
-    path_ends_c = np.delete(path_ends_c, keys_to_skip, axis=0)
+    path_ends_workspace = np.delete(path_ends_workspace, keys_to_skip, axis=0)
+    path_ends_workspace = list(map(list, path_ends_workspace - 1))
+    return path_ends_workspace
 
-    path_ends_c = list(map(list, path_ends_c))
-    return path_ends_c
 
-
-def remove_close_points(last_point, path_ends_c, max_px_gap=10):
+def remove_close_points(last_point, path_ends, max_px_gap=10):
+    """
+    Remove close points around certain pixel.
+    :param last_point: point around which to look
+    :type last_point: tuple
+    :param path_ends: points to check
+    :type path_ends: np.ndarray
+    :param max_px_gap: maximum pixel gap between last_point and a single point of path_ends
+    :type max_px_gap: int
+    :return: points without close points to the last point
+    :rtype: list
+    """
     keys_to_remove = []
-    for key, value in enumerate(np.array(path_ends_c)):
+    for key, value in enumerate(np.array(path_ends)):
         if (np.fabs(np.array(last_point) - value) < max_px_gap).all():
             keys_to_remove.append(key)
-    path_ends_c = np.delete(np.array(path_ends_c), keys_to_remove, axis=0)
-    return path_ends_c.tolist()
+    path_ends = np.delete(np.array(path_ends), keys_to_remove, axis=0)
+    return path_ends.tolist()
 
 
 def merge_paths(paths_c):
@@ -68,12 +90,37 @@ def merge_paths(paths_c):
     # Sort connections between paths by shortest gaps
     best_connections = sorted(best_connections, key=lambda k: k['gap_length'])
 
+    # The assumption that each path has one connection minimum and two maximum
+    # Find out at least one connection for all of single paths is a priority
+    first_occurrence = []
+    all_occurrences = []
+    connections_to_remove = []
+    best_connections_workspace = deepcopy(best_connections)
+    true_best_connections = []
+    for key, value in enumerate(best_connections):
+        key_0 = value['keys'][0]
+        key_1 = value['keys'][1]
+        if (first_occurrence.count(key_0) < 1 or first_occurrence.count(key_1) < 1) \
+                and all_occurrences.count(key_0) < 2 and all_occurrences.count(key_1) < 2:
+            true_best_connections.append(value)
+            first_occurrence.append(key_0)
+            first_occurrence.append(key_1)
+            first_occurrence = list(set(first_occurrence))
+            all_occurrences.append(key_0)
+            all_occurrences.append(key_1)
+            connections_to_remove.append(key)
+    best_connections_workspace = list(np.delete(np.array(best_connections_workspace), connections_to_remove))
+
+    # Append rest of connections
+    for connection in best_connections_workspace:
+        true_best_connections.append(connection)
+
     # Get rid of unnecessary connections -> with N paths there is always N - 1 connections
-    best_connections = best_connections[:len(paths_c) - 1]
+    true_best_connections = true_best_connections[:len(paths_c) - 1]
 
     # Find first path with a single connection
     paths_keys_order = []
-    keys = np.hstack([d['keys'] for d in best_connections])
+    keys = np.hstack([d['keys'] for d in true_best_connections])
 
     for key in range(len(paths_c)):
         if np.sum(keys == key) == 1:
@@ -81,15 +128,19 @@ def merge_paths(paths_c):
             break
 
     # Find paths & connections order
-    best_connections_workspace = deepcopy(best_connections)
+    best_connections_workspace = deepcopy(true_best_connections)
     best_connections_lengths_ordered = []
+    i = 0
     while len(best_connections_workspace) > 0:
+        i += 1
         for key, value in enumerate(best_connections_workspace):
             if paths_keys_order[-1] in best_connections_workspace[key]['keys']:
                 best_connections_workspace[key]['keys'].remove(paths_keys_order[-1])
                 paths_keys_order.append(value['keys'][0])
                 best_connections_lengths_ordered.append(best_connections_workspace.pop(key)['gap_length'])
                 break
+        if i > 10:
+            pass
 
     # Reorder paths
     ordered_paths = [paths_c[i] for i in paths_keys_order]
@@ -112,9 +163,16 @@ def merge_paths(paths_c):
 
 
 def get_linespaces(ordered_paths, gaps_length):
+    """
+    Get linespace for merged paths.
+    :param ordered_paths: all paths with correct order
+    :type ordered_paths: list
+    :param gaps_length: all gaps lengths between paths
+    :type gaps_length: list
+    :return: merged linespaces of all paths
+    :rtype: np.array
+    """
     full_length = np.sum([d["length"] for d in ordered_paths]) + np.sum(gaps_length)
-    # paths_points_num_scaled = (np.array([d["num_points"] for d in ordered_paths]) * T_scale / np.sum(np.array(ordered_paths["num_points"])))\
-    #    .astype(int).tolist()
     t_linespaces = []
     curr_value = 0
     for key, value in enumerate([d["length"] for d in ordered_paths]):
@@ -124,7 +182,6 @@ def get_linespaces(ordered_paths, gaps_length):
         if key < len(gaps_length):
             curr_value += gaps_length[key] / full_length
         t_linespaces.append(t_linespace)
-
     t = np.hstack(t_linespaces)
     return t
 
@@ -190,7 +247,7 @@ def walk(img, skel, start, r, d):
     return path, length
 
 
-def walk_fast(skel, start):
+def walk_fast(skel, start, img):
     length = 0
     path = [(int(start[1]), int(start[0]))]
     colors = ['r', 'g', 'b']
@@ -209,6 +266,7 @@ def walk_fast(skel, start):
         patch = skel[act[0] - 1: act[0] + 2, act[1] - 1: act[1] + 2]
         xy = dxy + act
         b = xy[patch]
+
         card = b.shape[0]
         if card == 1:
             aim = b[0].astype(np.int32)
@@ -228,6 +286,7 @@ def walk_fast(skel, start):
         i += 1
     return path, length
 
+
 def main(img):
     # img = plt.imread("test_v2.png")
     # img = plt.imread("test_v3.png")
@@ -238,6 +297,7 @@ def main(img):
     # plt.imshow(img)
 
     t1 = time()
+    img_copy = deepcopy(img)
     img = erosion(img)
     img = dilation(img)
     img = dilation(img)
@@ -253,7 +313,7 @@ def main(img):
 
     while len(path_ends_workspace) > 0:
         #path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
-        path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]))
+        path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]), img_copy)
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
         path_ends_workspace.pop(0)
         path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
@@ -279,7 +339,7 @@ def main(img):
     y = y_spline(T)
     t6 = time()
 
-    #print("SKELETONIZE:", t2 - t1)
+    print("SKELETONIZE:", t2 - t1)
     #print("FIND ENDS:", t3 - t2)
     #print("WALK:", t4 - t3)
     #print("MERGE:", t5 - t4)
@@ -297,28 +357,67 @@ def main(img):
     return x, y
 
 def get_spline(x, y, width, height):
+    """
+    Get an array with (x, y) coordinates set in.
+    :param x:
+    :type x:
+    :param y:
+    :type y:
+    :param width:
+    :type width:
+    :param height:
+    :type height:
+    :return:
+    :rtype:
+    """
     spline_frame = np.zeros(shape=(height, width))
+    keys_to_remove = []
+
+    for key, value in enumerate(x):
+        if x[key] > height or x[key] < 0 or y[key] > width or y[key] < 0:
+            keys_to_remove.append(key)
+    x = np.delete(x, keys_to_remove)
+    y = np.delete(y, keys_to_remove)
+
     spline_frame[tuple(x.astype(int)), tuple(y.astype(int))] = 1
+
     return spline_frame
+
+def get_cable(frame):
+    """
+    Process image to extract cable path.
+    :param frame: camera input frame
+    :type frame: np.ndarray
+    :return: Preprocessed camera frame
+    :rtype: np.ndarray
+    """
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    o = np.ones_like(hsv)[..., 0].astype(np.float32)
+    z = np.zeros_like(o)
+    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 7., hsv[..., 0] > 170.), hsv[..., 1] > 120), o, z)
+    return img
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(6)
+
     # Skip blank frames
     for i in range(100):
         ret, frame = cap.read()
 
     while True:
         ret, frame = cap.read()
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        o = np.ones_like(hsv)[..., 0].astype(np.float32)
-        z = np.zeros_like(o)
-        img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 7., hsv[..., 0] > 170.), hsv[..., 1] > 120), o, z)
 
+        # Preprocess image
+        img = get_cable(frame)
+
+        # Get spline coordinates
         x, y = main(img)
 
+        # Convert spline coordinates to image frame
         spline_frame = get_spline(x=y, y=x, width=640, height=480)
-        cv2.imshow('spline', spline_frame)
 
+        # Draw outputs
+        cv2.imshow('spline', spline_frame)
         cv2.imshow('frame', img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
            break
