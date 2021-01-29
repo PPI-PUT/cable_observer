@@ -1,8 +1,7 @@
-from time import time, sleep
-import sys
+from time import time
 from copy import deepcopy
 from scipy.interpolate import LSQUnivariateSpline
-from skimage.morphology import skeletonize, medial_axis, erosion, dilation, square
+from skimage.morphology import skeletonize, erosion, dilation
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -53,7 +52,7 @@ def remove_close_points(last_point, path_ends, max_px_gap=10):
     :param last_point: point around which to look
     :type last_point: tuple
     :param path_ends: points to check
-    :type path_ends: np.ndarray
+    :type path_ends: np.array
     :param max_px_gap: maximum pixel gap between last_point and a single point of path_ends
     :type max_px_gap: int
     :return: points without close points to the last point
@@ -67,13 +66,19 @@ def remove_close_points(last_point, path_ends, max_px_gap=10):
     return path_ends.tolist()
 
 
-def merge_paths(paths_c):
+def find_connections(paths):
+    """
+    Among all paths, for each path end, find the closest end belonging to another path. N paths results 2N connections.
+    :param paths: all paths
+    :type paths: np.array
+    :return: dictionaries that describe connections
+    :rtype: list
+    """
     best_connections = []
-    for key, value in enumerate(paths_c):
-        for key2, value2 in enumerate(paths_c[key + 1:]):
-            connections = []
-
+    for key, value in enumerate(paths):
+        for key2, value2 in enumerate(paths[key + 1:]):
             # Calculate gap length between two paths (begins and ends)
+            connections = []
             gap_length = np.linalg.norm(np.subtract(value['coords'][0], value2['coords'][0]))
             connections.append({"gap_length": gap_length, "keys": [key, key + 1 + key2]})
             gap_length = np.linalg.norm(np.subtract(value['coords'][0], value2['coords'][-1]))
@@ -90,64 +95,100 @@ def merge_paths(paths_c):
     # Sort connections between paths by shortest gaps
     best_connections = sorted(best_connections, key=lambda k: k['gap_length'])
 
-    # The assumption that each path has one connection minimum and two maximum
-    # Find out at least one connection for all of single paths is a priority
+    return best_connections
+
+
+def select_connections(connections, num_paths):
+    """
+    For N paths select best N - 1 connections among given 2 N connections.
+    :param connections: dictionaries that describe connections
+    :type connections: list
+    :param num_paths: number of paths
+    :type num_paths: int
+    :return: dictionaries that describe selected connections
+    :rtype: list
+    """
+    # Within all connections find minimum a single occurrence for a single path. Single path may occur maximum twice
     first_occurrence = []
     all_occurrences = []
     connections_to_remove = []
-    best_connections_workspace = deepcopy(best_connections)
-    true_best_connections = []
-    for key, value in enumerate(best_connections):
+    connections_workspace = deepcopy(connections)
+    selected_connections = []
+    for key, value in enumerate(connections):
         key_0 = value['keys'][0]
         key_1 = value['keys'][1]
         if (first_occurrence.count(key_0) < 1 or first_occurrence.count(key_1) < 1) \
                 and all_occurrences.count(key_0) < 2 and all_occurrences.count(key_1) < 2:
-            true_best_connections.append(value)
+            selected_connections.append(value)
             first_occurrence.append(key_0)
             first_occurrence.append(key_1)
             first_occurrence = list(set(first_occurrence))
             all_occurrences.append(key_0)
             all_occurrences.append(key_1)
             connections_to_remove.append(key)
-    best_connections_workspace = list(np.delete(np.array(best_connections_workspace), connections_to_remove))
+    best_connections_workspace = list(np.delete(np.array(connections_workspace), connections_to_remove))
 
     # Append rest of connections
     for connection in best_connections_workspace:
-        true_best_connections.append(connection)
+        selected_connections.append(connection)
 
     # Get rid of unnecessary connections -> with N paths there is always N - 1 connections
-    true_best_connections = true_best_connections[:len(paths_c) - 1]
+    selected_connections = selected_connections[:num_paths - 1]
 
+    return selected_connections
+
+
+def order_paths(connections, paths):
+    """
+    Among the possible connections create a sequence of paths.
+    :param connections: dictionaries that describe selected connections
+    :type connections: list
+    :param paths: all paths
+    :type paths: np.array
+    :return: ordered paths, ordered gaps lengths
+    :rtype: list, list
+    """
     # Find first path with a single connection
     paths_keys_order = []
-    keys = np.hstack([d['keys'] for d in true_best_connections])
-
-    for key in range(len(paths_c)):
+    keys = np.hstack([d['keys'] for d in connections])
+    for key in range(len(paths)):
         if np.sum(keys == key) == 1:
             paths_keys_order.append(key)
             break
 
-    # Find paths & connections order
-    best_connections_workspace = deepcopy(true_best_connections)
-    best_connections_lengths_ordered = []
-    i = 0
-    while len(best_connections_workspace) > 0:
+    # Find paths & gaps sequence
+    connections_workspace = deepcopy(connections)
+    ordered_gaps_lengths = []
+    i=0
+    while len(connections_workspace) > 0:
         i += 1
-        for key, value in enumerate(best_connections_workspace):
-            if paths_keys_order[-1] in best_connections_workspace[key]['keys']:
-                best_connections_workspace[key]['keys'].remove(paths_keys_order[-1])
+        for key, value in enumerate(connections_workspace):
+            if paths_keys_order[-1] in connections_workspace[key]['keys']:
+                connections_workspace[key]['keys'].remove(paths_keys_order[-1])
                 paths_keys_order.append(value['keys'][0])
-                best_connections_lengths_ordered.append(best_connections_workspace.pop(key)['gap_length'])
+                ordered_gaps_lengths.append(connections_workspace.pop(key)['gap_length'])
                 break
-        if i > 10:
+        if i > 20:
             pass
 
-    # Reorder paths
-    ordered_paths = [paths_c[i] for i in paths_keys_order]
+    # Order paths
+    ordered_paths = [paths[i] for i in paths_keys_order]
+
+    return ordered_paths, ordered_gaps_lengths
+
+
+def merge_paths(paths):
+    """
+    Merge ordered paths with correct sequence.
+    :param paths: ordered paths
+    :type paths: list
+    :return: merged paths
+    :rtype: list
+    """
 
     # Merge & flip paths
-    merged_paths = [ordered_paths[0]['coords']]
-    for key, value in enumerate([d['coords'] for d in ordered_paths][1:]):
+    merged_paths = [paths[0]['coords']]
+    for key, value in enumerate([d['coords'] for d in paths][1:]):
         if np.linalg.norm(np.subtract(merged_paths[-1][-1], value[0])) > np.linalg.norm(
                 np.subtract(merged_paths[-1][0], value[0])):
             merged_paths[-1] = np.flip(merged_paths[-1], axis=0).tolist()
@@ -159,7 +200,7 @@ def merge_paths(paths_c):
 
     merged_paths = np.vstack(np.array(merged_paths, dtype=object))
 
-    return ordered_paths, merged_paths.tolist(), best_connections_lengths_ordered
+    return merged_paths.tolist()
 
 
 def get_linespaces(ordered_paths, gaps_length):
@@ -247,7 +288,7 @@ def walk(img, skel, start, r, d):
     return path, length
 
 
-def walk_fast(skel, start, img):
+def walk_fast(skel, start):
     length = 0
     path = [(int(start[1]), int(start[0]))]
     colors = ['r', 'g', 'b']
@@ -281,55 +322,73 @@ def walk_fast(skel, start, img):
             break
 
         length += np.linalg.norm(np.array(act) - np.array(aim))
-        #plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
         path.append((aim[0], aim[1]))
         i += 1
     return path, length
 
 
+def img_morphology(img, num_dilations):
+    """
+    Get skeleton representation of paths.
+    :param img: preprocessed frame
+    :type img: np.array
+    :param num_dilations: number of dilation operations
+    :type num_dilations: int
+    :return: processed frame
+    :rtype: np.array
+    """
+    img = erosion(img)
+    for dilatation in range(num_dilations):
+        img = dilation(img)
+    skel = skeletonize(img)
+    return skel
+
+
 def main(img):
-    # img = plt.imread("test_v2.png")
     # img = plt.imread("test_v3.png")
-    # img = plt.imread("test_v4.png")
-    # img = plt.imread("test_v5.png")
-    # img = plt.imread("test_v6.png")
     # plt.subplot(121)
     # plt.imshow(img)
 
-    t1 = time()
-    img_copy = deepcopy(img)
-    img = erosion(img)
-    img = dilation(img)
-    img = dilation(img)
-    img = dilation(img)
-    img = dilation(img)
-    skel = skeletonize(img)
-    t2 = time()
-    path_ends = find_ends(img=skel, max_px_gap=5)
-    t3 = time()
-    path_ends_workspace = path_ends.copy()
+    # Get image skeleton
+    img_skeleton = img_morphology(img=img, num_dilations=4)
 
+    # Find paths ends
+    path_ends = find_ends(img=img_skeleton, max_px_gap=5)
+
+    # Create paths
     paths = []
-
-    while len(path_ends_workspace) > 0:
+    while len(path_ends) > 0:
         #path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
-        path, path_length = walk_fast(skel, tuple(path_ends_workspace[0]), img_copy)
+        path, path_length = walk_fast(img_skeleton, tuple(path_ends[0]))
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
-        path_ends_workspace.pop(0)
-        path_ends_workspace = remove_close_points(path[-1], path_ends_workspace)
+        path_ends.pop(0)
+        path_ends = remove_close_points(path[-1], path_ends)
 
+    # Get rid of too short paths
     paths = [p for p in paths if len(p['coords']) > 1]
-    t4 = time()
 
+    # Perform operations depending on the number of paths
     if len(paths) > 1:
-        ordered_paths, merged_paths, gaps_length = merge_paths(paths)
+        # Case with a multiple paths
+        # Find shortest connections between paths
+        connections = find_connections(paths=paths)
+
+        # Select best connections
+        selected_connections = select_connections(connections=connections, num_paths=len(paths))
+
+        # Order paths
+        ordered_paths, ordered_gaps_lengths = order_paths(connections=selected_connections, paths=paths)
+
+        # Merge paths
+        merged_paths = merge_paths(ordered_paths)
+
         xys = np.stack(merged_paths, axis=0)
-        t = get_linespaces(ordered_paths, gaps_length)
+        t = get_linespaces(ordered_paths, ordered_gaps_lengths)
     else:
+        # Case with a single path
         xys = np.stack(paths[0]['coords'], axis=0)
         t = np.linspace(0., 1., xys.shape[0])
 
-    t5 = time()
     T = np.linspace(0., 1., 128)
     k = 7
     knots = np.linspace(0., 1., k)[1:-1]
@@ -337,14 +396,7 @@ def main(img):
     y_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
     x = x_spline(T)
     y = y_spline(T)
-    t6 = time()
 
-    print("SKELETONIZE:", t2 - t1)
-    #print("FIND ENDS:", t3 - t2)
-    #print("WALK:", t4 - t3)
-    #print("MERGE:", t5 - t4)
-    #print("FIT SPLINE:", t6 - t5)
-    print("SUM:", t6 - t1)
 
     # plt.plot(x, y, 'g')
     # plt.subplot(122)
@@ -354,21 +406,21 @@ def main(img):
     # plt.plot(t, xys[:, 0], 'x', label="py")
     # plt.legend()
     # plt.show()
-    return x, y
+    return x, y, img_skeleton.astype(np.float64) * 255
 
 def get_spline(x, y, width, height):
     """
     Get an array with (x, y) coordinates set in.
-    :param x:
-    :type x:
-    :param y:
-    :type y:
-    :param width:
-    :type width:
-    :param height:
-    :type height:
-    :return:
-    :rtype:
+    :param x: x coordinates
+    :type x: np.array
+    :param y: y coordinates
+    :type y: np.array
+    :param width: frame width
+    :type width: int
+    :param height: frame height
+    :type height: int
+    :return: path spline
+    :rtype: np.array
     """
     spline_frame = np.zeros(shape=(height, width))
     keys_to_remove = []
@@ -383,13 +435,13 @@ def get_spline(x, y, width, height):
 
     return spline_frame
 
-def get_cable(frame):
+def set_mask(frame):
     """
     Process image to extract cable path.
     :param frame: camera input frame
-    :type frame: np.ndarray
+    :type frame: np.array
     :return: Preprocessed camera frame
-    :rtype: np.ndarray
+    :rtype: np.array
     """
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     o = np.ones_like(hsv)[..., 0].astype(np.float32)
@@ -408,17 +460,17 @@ if __name__ == "__main__":
         ret, frame = cap.read()
 
         # Preprocess image
-        img = get_cable(frame)
+        img = set_mask(frame)
 
         # Get spline coordinates
-        x, y = main(img)
+        x, y, img_skeleton = main(img)
 
         # Convert spline coordinates to image frame
         spline_frame = get_spline(x=y, y=x, width=640, height=480)
 
         # Draw outputs
         cv2.imshow('spline', spline_frame)
-        cv2.imshow('frame', img)
+        cv2.imshow('frame', img_skeleton)
         if cv2.waitKey(1) & 0xFF == ord('q'):
            break
 
