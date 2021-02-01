@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 from momentum import main, get_spline
 
 if __name__ == "__main__":
-    img = plt.imread("test1.png")[..., 0]
+    #img = plt.imread("border.png")#[..., 0]
+    img = plt.imread("0019.png")#[..., 0]
     # Get spline coordinates
     x, y, img_skeleton = main(img)
 

@@ -289,8 +289,9 @@ def walk(img, skel, start, r, d):
 
 
 def walk_fast(skel, start):
+    skel = np.pad(skel, [[1, 1], [1, 1]], 'constant', constant_values=False)
     length = 0
-    path = [(int(start[1]), int(start[0]))]
+    path = [(int(start[1]) + 1, int(start[0]) + 1)]
     colors = ['r', 'g', 'b']
     dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
     dxy = np.stack(dxy, axis=-1)
@@ -324,6 +325,7 @@ def walk_fast(skel, start):
         length += np.linalg.norm(np.array(act) - np.array(aim))
         path.append((aim[0], aim[1]))
         i += 1
+    path = [(a[0] - 1, a[1] - 1) for a in path]
     return path, length
 
 
