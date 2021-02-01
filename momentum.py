@@ -1,6 +1,7 @@
 from time import time
 from copy import deepcopy
 from scipy.interpolate import LSQUnivariateSpline
+from scipy.ndimage import binary_fill_holes
 from skimage.morphology import skeletonize, erosion, dilation
 import cv2
 import numpy as np
@@ -339,10 +340,32 @@ def img_morphology(img, num_dilations):
     :return: processed frame
     :rtype: np.array
     """
+    #plt.subplot(331)
+    #plt.imshow(img)
+    img = binary_fill_holes(img)
+    #plt.subplot(332)
+    #plt.imshow(img)
     img = erosion(img)
-    for dilatation in range(num_dilations):
-        img = dilation(img)
+    #plt.subplot(333)
+    #plt.imshow(img)
+    img = dilation(img)
+    #plt.subplot(334)
+    #plt.imshow(img)
+    #img = dilation(img)
+    #plt.subplot(335)
+    #plt.imshow(img)
+    #img = dilation(img)
+    #plt.subplot(336)
+    #plt.imshow(img)
+    #img = dilation(img)
+    #plt.subplot(337)
+    #plt.imshow(img)
+    #for dilatation in range(num_dilations):
+    #    img = dilation(img)
     skel = skeletonize(img)
+    #plt.subplot(339)
+    #plt.imshow(skel)
+    #plt.show()
     return skel
 
 

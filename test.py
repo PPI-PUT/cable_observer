@@ -3,7 +3,8 @@ from momentum import main, get_spline
 
 if __name__ == "__main__":
     #img = plt.imread("border.png")#[..., 0]
-    img = plt.imread("0019.png")#[..., 0]
+    #img = plt.imread("0019.png")#[..., 0]
+    img = plt.imread("img_err_0.png")[..., 0]
     # Get spline coordinates
     x, y, img_skeleton = main(img)
 
