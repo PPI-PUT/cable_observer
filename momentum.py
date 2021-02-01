@@ -159,7 +159,7 @@ def order_paths(connections, paths):
     # Find paths & gaps sequence
     connections_workspace = deepcopy(connections)
     ordered_gaps_lengths = []
-    i=0
+    i = 0
     while len(connections_workspace) > 0:
         i += 1
         for key, value in enumerate(connections_workspace):
@@ -358,7 +358,7 @@ def main(img):
     # Create paths
     paths = []
     while len(path_ends) > 0:
-        #path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
+        # path, path_length = walk(img, skel, tuple(path_ends_workspace[0]), 10, 3)
         path, path_length = walk_fast(img_skeleton, tuple(path_ends[0]))
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
         path_ends.pop(0)
@@ -397,7 +397,6 @@ def main(img):
     x = x_spline(T)
     y = y_spline(T)
 
-
     # plt.plot(x, y, 'g')
     # plt.subplot(122)
     # plt.plot(T, x, label="x")
@@ -407,6 +406,7 @@ def main(img):
     # plt.legend()
     # plt.show()
     return x, y, img_skeleton.astype(np.float64) * 255
+
 
 def get_spline(x, y, width, height):
     """
@@ -435,12 +435,13 @@ def get_spline(x, y, width, height):
 
     return spline_frame
 
+
 def set_mask(frame):
     """
     Process image to extract cable path.
-    :param frame: camera input frame
+    :param frame: camera input frame (W x H x 3)
     :type frame: np.array
-    :return: Preprocessed camera frame
+    :return: Preprocessed camera frame (W x H)
     :rtype: np.array
     """
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -448,6 +449,7 @@ def set_mask(frame):
     z = np.zeros_like(o)
     img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 7., hsv[..., 0] > 170.), hsv[..., 1] > 120), o, z)
     return img
+
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(6)
@@ -472,7 +474,7 @@ if __name__ == "__main__":
         cv2.imshow('spline', spline_frame)
         cv2.imshow('frame', img_skeleton)
         if cv2.waitKey(1) & 0xFF == ord('q'):
-           break
+            break
 
     cap.release()
     cv2.destroyAllWindows()
