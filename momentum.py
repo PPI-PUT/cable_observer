@@ -177,17 +177,16 @@ def order_paths(connections, paths):
     # Find paths & gaps sequence
     connections_workspace = deepcopy(connections)
     ordered_gaps_lengths = []
-    i = 0
     while len(connections_workspace) > 0:
-        i += 1
+        last_len = len(connections_workspace)
         for key, value in enumerate(connections_workspace):
             if paths_keys_order[-1] in connections_workspace[key]['keys']:
                 connections_workspace[key]['keys'].remove(paths_keys_order[-1])
                 paths_keys_order.append(value['keys'][0])
                 ordered_gaps_lengths.append(connections_workspace.pop(key)['gap_length'])
                 break
-        if i > 20:
-            pass
+        assert len(connections_workspace) < last_len, \
+            "Connections " + str([d['keys'] for d in connections]) + " may not be linked."
 
     # Order paths
     ordered_paths = [paths[i] for i in paths_keys_order]
