@@ -387,7 +387,7 @@ def main(img):
         path, path_length = walk_fast(img_skeleton, tuple(path_ends[0]))
         paths.append({"coords": path, "num_points": len(path), "length": path_length})
         path_ends.pop(0)
-        path_ends = remove_close_points(path[-1], path_ends)
+        path_ends = remove_close_points((path[-1][1], path[-1][0]), path_ends)
 
     # Get rid of too short paths
     paths = [p for p in paths if len(p['coords']) > 1]
