@@ -30,7 +30,7 @@ def set_morphology(img):
     img = binary_fill_holes(img)
     img = erosion(img)
     img = dilation(img)
-    img = skeletonize(img)
+    img = skeletonize(img, method='lee') > 0
     return img
 
 
