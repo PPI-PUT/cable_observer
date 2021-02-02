@@ -129,6 +129,23 @@ def select_connections(connections, num_paths):
             connections_to_remove.append(key)
     best_connections_workspace = list(np.delete(np.array(connections_workspace), connections_to_remove))
 
+    # Check which connection has no pair and mark it as required connection
+    all_occurrences = np.array(all_occurrences).reshape((-1, 2))
+    required_connections = []
+    for key, value in enumerate(all_occurrences):
+        arr_to_check = np.vstack((all_occurrences[:key], all_occurrences[key + 1:]))
+        if not all_occurrences[key][0] in arr_to_check and not all_occurrences[key][1] in arr_to_check:
+            required_connections.append(value)
+
+    # Find required connections among rest of possible connections
+    for required_connection in required_connections:
+        connections_to_remove = []
+        for key, value in enumerate(best_connections_workspace):
+            if np.any(required_connection == value['keys']):
+                selected_connections.append(value)
+                connections_to_remove.append(key)
+        best_connections_workspace = list(np.delete(np.array(best_connections_workspace), connections_to_remove))
+
     # Append rest of connections
     for connection in best_connections_workspace:
         selected_connections.append(connection)
@@ -160,17 +177,16 @@ def order_paths(connections, paths):
     # Find paths & gaps sequence
     connections_workspace = deepcopy(connections)
     ordered_gaps_lengths = []
-    i = 0
     while len(connections_workspace) > 0:
-        i += 1
+        last_len = len(connections_workspace)
         for key, value in enumerate(connections_workspace):
             if paths_keys_order[-1] in connections_workspace[key]['keys']:
                 connections_workspace[key]['keys'].remove(paths_keys_order[-1])
                 paths_keys_order.append(value['keys'][0])
                 ordered_gaps_lengths.append(connections_workspace.pop(key)['gap_length'])
                 break
-        if i > 20:
-            pass
+        assert len(connections_workspace) < last_len, \
+            "Connections " + str([d['keys'] for d in connections]) + " may not be linked."
 
     # Order paths
     ordered_paths = [paths[i] for i in paths_keys_order]
