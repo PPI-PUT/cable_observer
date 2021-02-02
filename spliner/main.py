@@ -32,10 +32,12 @@ def init(frame):
 
     # Get spline representation
     t = np.linspace(0., 1., path.num_points)
-    x, y = path.get_spline(t=t)
+    x, y, x_spline, y_spline = path.get_spline(t=t)
 
     buffer = np.column_stack((x, y))
-    return buffer, img.astype(np.float64) * 255
+    coeffs = np.array([x_spline.get_coeffs(), y_spline.get_coeffs()])
+
+    return buffer, coeffs, img.astype(np.float64) * 255
 
 
 def main(frame, buffer):
@@ -57,7 +59,7 @@ def main(frame, buffer):
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends)
 
     # Get rid of too short paths
-    paths = [p for p in paths if p.num_points > 1]
+    paths = [p for p in paths if p.num_points > 3]
 
     # Compare buffer with paths and get paths sequence
     paths_keys = []
@@ -82,9 +84,10 @@ def main(frame, buffer):
 
     # Get spline representation for a merged path
     merged_path = Path(coordinates=merged_paths, length=-1)
-    x, y = merged_path.get_spline(t=t)
+    x, y, x_spline, y_spline = merged_path.get_spline(t=t)
+    coeffs = np.array([x_spline.get_coeffs(), y_spline.get_coeffs()])
 
-    return x, y, img.astype(np.float64) * 255
+    return x, y, coeffs, img.astype(np.float64) * 255
 
 
 if __name__ == "__main__":
@@ -96,19 +99,31 @@ if __name__ == "__main__":
 
     # Initialization spline
     _, frame = cap.read()
-    buffer, img_skeleton = init(frame)
+    buffer, coeffs_buffer, img_skeleton = init(frame)
 
     while True:
         _, frame = cap.read()
 
         # Get spline coordinates
-        x, y, img_skeleton = main(frame, buffer)
+        x, y, coeffs, img_skeleton = main(frame, buffer)
+        new_spline = np.column_stack((x, y))
 
-        # Write buffer variables for next loop
-        buffer = np.column_stack((x, y))
+        # Calculate error
+        #dst = np.linalg.norm(new_spline[:, np.newaxis] - buffer[np.newaxis], axis=-1)
+        #err = np.sum(np.min(dst, axis=0))
+        #err = np.sum(np.fabs(new_spline - buffer))
+        err = np.sum(np.absolute(coeffs - coeffs_buffer))
+        print(err)
 
-        # Convert spline coordinates to image frame
-        img_spline = get_spline_image(x=x, y=y, shape=frame.shape)
+        # Check error
+        if err < 1000:
+            # Write buffer variable for next loop
+            buffer = new_spline
+            # Convert spline coordinates to image frame
+            img_spline = get_spline_image(x=x, y=y, shape=frame.shape)
+        else:
+            # Keep previous spline
+            img_spline = get_spline_image(x=buffer[..., 0], y=buffer[..., 1], shape=frame.shape)
 
         # Show outputs
         cv2.imshow('spline', img_spline)

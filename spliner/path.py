@@ -37,7 +37,7 @@ class Path:
         y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
         x = x_spline(T)
         y = y_spline(T)
-        return x, y
+        return x, y, x_spline, y_spline
 
     def get_key(self, buffer):
         """
