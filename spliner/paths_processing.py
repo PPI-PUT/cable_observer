@@ -100,6 +100,7 @@ def walk_fast(skel, start):
     path = [(a[0] - 1, a[1] - 1) for a in path]
     return path, length
 
+
 def walk(img, skel, start, r, d):
     pad = int(1.5*r)
     skel = np.pad(skel, [[pad, pad], [pad, pad]], 'constant', constant_values=False)
