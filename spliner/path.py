@@ -26,8 +26,8 @@ class Path:
         Get spline coordinates.
         :param t: path linespace
         :type t: np.array
-        :return: x coordinates, y coordinates
-        :rtype: np.array, np.array
+        :return: x coordinates, y coordinates, x spline, y spline
+        :rtype: np.array, np.array, np.array, np.array
         """
         xys = np.stack(self.coordinates, axis=0)
         T = np.linspace(0., 1., 128)

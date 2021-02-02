@@ -6,13 +6,14 @@ from paths_processing import walk_fast, find_ends, remove_close_points, keys_to_
     get_gaps_length, get_linespaces
 from path import Path
 
+
 def init(frame):
     """
     Get initial spline.
     :param frame: camera input frame (W x H x 3)
     :type frame: np.array
-    :return: x & y coordinates as a buffer, skeleton image
-    :rtype: np.array, np.array
+    :return: x & y coordinates as a buffer, path coefficients, skeleton image
+    :rtype: np.array, np.array, np.array
     """
     # Preprocess image
     img = set_mask(frame)
