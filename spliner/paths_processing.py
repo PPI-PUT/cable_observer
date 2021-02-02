@@ -100,6 +100,77 @@ def walk_fast(skel, start):
     path = [(a[0] - 1, a[1] - 1) for a in path]
     return path, length
 
+def walk(img, skel, start, r, d):
+    pad = int(1.5*r)
+    skel = np.pad(skel, [[pad, pad], [pad, pad]], 'constant', constant_values=False)
+    img = np.pad(img, [[pad, pad], [pad, pad]], 'constant', constant_values=False)
+    path = [(int(start[1]) + pad, int(start[0]) + pad)]
+    #path = [start]
+    #colors = ['r', 'g', 'b']
+    aim = np.array([0, 0])
+    patch = np.array([True, True])
+    radius = 1
+    length = 0.
+    for i in range(100):
+        #act = np.array([path[-1][1], path[-1][0]])
+        act = np.array(path[-1])
+        act_r = np.around(act).astype(np.int32)
+        if i > 0:
+            #prev = np.array([path[-2][1], path[-2][0]])
+            prev = np.array(path[-2])
+            new = act + (act - prev)
+            new = np.around(new).astype(np.int32)
+            patch = skel[new[0] - d: new[0] + d + 1, new[1] - d: new[1] + d + 1]
+            xy = np.meshgrid(np.linspace(new[1] - d, new[1] + d, 2 * d + 1),
+                             np.linspace(new[0] - d, new[0] + d, 2 * d + 1))
+            xy = np.stack(xy, axis=-1)
+            xy = xy[:, :, ::-1]
+            dist = np.linalg.norm(xy - act[np.newaxis, np.newaxis], axis=-1)
+            radius = np.logical_and(r - 2 < dist, dist < r + 2).astype(np.float32)
+            print(xy.shape)
+            print(patch.shape)
+            print(radius.shape)
+            aim = np.sum(xy * patch[..., np.newaxis] * radius[..., np.newaxis], axis=(0, 1)) / np.sum(patch * radius)
+        aim_r = np.around(aim).astype(np.int32)
+        aim_r_neighbourhood = skel[aim_r[0] - 1: aim_r[0] + 2, aim_r[1] - 1: aim_r[1] + 2].astype(np.int32)
+        aim_missed = np.sum(aim_r_neighbourhood) == 0 or not (patch * radius).any()
+        if i == 0 or aim_missed:
+            pts = []
+            n = np.linspace(-r, r, 2 * r + 1)[skel[act_r[0] - r: act_r[0] + r + 1, act_r[1] - r].astype(np.bool)]
+            n_pts = np.stack([act_r[0] + n, (act_r[1] - r) * np.ones_like(n)], axis=-1)
+            pts.append(n_pts)
+            e = np.linspace(-r, r, 2 * r + 1)[skel[act_r[0] + r, act_r[1] - r: act_r[1] + r + 1].astype(np.bool)]
+            e_pts = np.stack([(act_r[0] + r) * np.ones_like(e), act_r[1] + e], axis=-1)
+            pts.append(e_pts)
+            s = np.linspace(-r, r, 2 * r + 1)[skel[act_r[0] - r: act_r[0] + r + 1, act_r[1] + r].astype(np.bool)]
+            s_pts = np.stack([act_r[0] + s, (act_r[1] + r) * np.ones_like(s)], axis=-1)
+            pts.append(s_pts)
+            w = np.linspace(-r, r, 2 * r + 1)[skel[act_r[0] - r, act_r[1] - r: act_r[1] + r + 1].astype(np.bool)]
+            w_pts = np.stack([(act_r[0] - r) * np.ones_like(w), act_r[1] + w], axis=-1)
+            pts.append(w_pts)
+            pts = np.concatenate(pts, axis=0)
+
+            if len(path) > 1:
+                #prev = np.array([path[-2][1], path[-2][0]])
+                prev = np.array(path[-2])
+                dists = np.sum(np.abs(pts - prev), axis=-1)
+                pts = pts[dists >= r - 1]
+
+            if len(pts) == 0:
+                break
+            aim = np.mean(pts, axis=0)
+        x_path = np.round(np.linspace(act[1], aim[1], 10)).astype(np.int32)
+        y_path = np.round(np.linspace(act[0], aim[0], 10)).astype(np.int32)
+        img_path = img[y_path, x_path]
+        if np.mean(img_path) < 0.8:
+            break
+
+        length += np.linalg.norm(np.array(act) - np.array(aim))
+        #plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
+        path.append((aim[0], aim[1]))
+    path = [(a[0] - pad, a[1] - pad) for a in path]
+    return path, length
+
 
 def keys_to_sequence(keys):
     """
