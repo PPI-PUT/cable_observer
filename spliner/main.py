@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
-
+from time import time
 from image_processing import set_mask, set_morphology, get_spline_image
 from paths_processing import walk_fast, find_ends, remove_close_points, keys_to_sequence, reorder_paths,\
-    get_gaps_length, get_linespaces
+    get_gaps_length, get_linespaces, get_errors
 from path import Path
 
 
@@ -22,23 +22,24 @@ def init(frame):
     img = set_morphology(img)
 
     # Find path ends
-    path_ends = find_ends(img=img, max_px_gap=5)
-    assert len(path_ends) <= 2, cv2.imwrite("init_path_error.png", img.astype(np.float64) * 255) and \
-                                "More than 2 path ends detected. Wrong initialization input. " \
-                                "Path saved as init_path_error.png. Path ends: " + str(path_ends)
+    paths_ends = find_ends(img=img, max_px_gap=5)
+    assert len(paths_ends) <= 2, cv2.imwrite("init_path_error.png", img.astype(np.float64) * 255) and \
+                                "More than 2 paths ends detected. Wrong initialization input. " \
+                                "Image saved as init_path_error.png. Path ends: " + str(paths_ends)
+    assert len(paths_ends) > 0, cv2.imwrite("init_path_error.png", img.astype(np.float64) * 255) and \
+                                "0 paths ends detected. Wrong initialization input. " \
+                                "Image saved as init_path_error.png. Path ends: " + str(paths_ends)
 
     # Get coordinates sequence
-    coordinates, length = walk_fast(img, tuple(path_ends[0]))
+    coordinates, length = walk_fast(img, tuple(paths_ends[0]))
     path = Path(coordinates=coordinates, length=length)
 
     # Get spline representation
     t = np.linspace(0., 1., path.num_points)
-    x, y, x_spline, y_spline = path.get_spline(t=t)
+    spline_coords = path.get_spline(t=t)
+    spline_params = path.get_spline_params()
 
-    buffer = np.column_stack((x, y))
-    coeffs = np.array([x_spline.get_coeffs(), y_spline.get_coeffs()])
-
-    return buffer, coeffs, img.astype(np.float64) * 255
+    return spline_coords, spline_params, img.astype(np.float64) * 255
 
 
 def main(frame, buffer):
@@ -84,15 +85,16 @@ def main(frame, buffer):
     merged_paths = np.vstack([p() for p in paths])
 
     # Get spline representation for a merged path
-    merged_path = Path(coordinates=merged_paths, length=-1)
-    x, y, x_spline, y_spline = merged_path.get_spline(t=t)
-    coeffs = np.array([x_spline.get_coeffs(), y_spline.get_coeffs()])
+    full_length = np.sum([p.length for p in paths]) + np.sum(gaps_length)
+    merged_path = Path(coordinates=merged_paths, length=full_length)
+    spline_coords = merged_path.get_spline(t=t)
+    spline_params = merged_path.get_spline_params()
 
-    return x, y, coeffs, img.astype(np.float64) * 255
+    return spline_coords, spline_params, img.astype(np.float64) * 255
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(6)
+    cap = cv2.VideoCapture(4)
 
     # Skip blank frames
     for i in range(100):
@@ -100,31 +102,32 @@ if __name__ == "__main__":
 
     # Initialization spline
     _, frame = cap.read()
-    buffer, coeffs_buffer, img_skeleton = init(frame)
+    spline_coords_buffer, spline_params_buffer, img_skeleton = init(frame)
 
     while True:
         _, frame = cap.read()
 
         # Get spline coordinates
-        x, y, coeffs, img_skeleton = main(frame, buffer)
-        new_spline = np.column_stack((x, y))
+        spline_coords, spline_params, img_skeleton = main(frame, spline_coords_buffer)
 
         # Calculate error
-        #dst = np.linalg.norm(new_spline[:, np.newaxis] - buffer[np.newaxis], axis=-1)
-        #err = np.sum(np.min(dst, axis=0))
-        #err = np.sum(np.fabs(new_spline - buffer))
-        err = np.sum(np.absolute(coeffs - coeffs_buffer))
-        print(err)
+        # dst = np.linalg.norm(spline_coords[:, np.newaxis] - spline_coords_buffer[np.newaxis], axis=-1)
+        # err = np.sum(np.min(dst, axis=0))
+        # err = np.sum(np.fabs(new_spline - buffer))
+        # err = np.sum(np.absolute(spline_params['coeffs'] - spline_params_buffer['coeffs']))
+        errors = get_errors(spline_params, spline_params_buffer)
+        err = np.max(errors['coeffs_error_max'])
 
         # Check error
-        if err < 1000:
+        if err < 100:
             # Write buffer variable for next loop
-            buffer = new_spline
+            spline_coords_buffer = spline_coords
+            spline_params_buffer = spline_params
             # Convert spline coordinates to image frame
-            img_spline = get_spline_image(x=x, y=y, shape=frame.shape)
+            img_spline = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
         else:
             # Keep previous spline
-            img_spline = get_spline_image(x=buffer[..., 0], y=buffer[..., 1], shape=frame.shape)
+            img_spline = get_spline_image(spline_coords=spline_coords_buffer, shape=frame.shape)
 
         # Show outputs
         cv2.imshow('spline', img_spline)

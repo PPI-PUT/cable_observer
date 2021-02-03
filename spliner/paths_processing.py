@@ -245,3 +245,28 @@ def get_linespaces(paths, gaps_length):
         t_linespaces.append(t_linespace)
     t = np.hstack(t_linespaces)
     return t
+
+
+def get_errors(spline_params, spline_params_buffer):
+    """
+    Get errors:
+        * length_error - length difference
+        * coeffs_error_max - max coefficients difference [x, y]
+        * residuals_error - residuals difference [x, y]
+        * derivatives_error_max - max 1st derivative difference within set of control points [x, y]
+    :param spline_params: current spline params
+    :type spline_params: np.array
+    :param spline_params_buffer: previous spline params
+    :type spline_params_buffer: np.array
+    :return: spline errors
+    :rtype: dict
+    """
+    length_error = np.absolute(spline_params['length'] - spline_params_buffer['length'])
+    coeffs_error_sum = np.absolute(spline_params['coeffs'] - spline_params_buffer['coeffs'])
+    coeffs_error_max = np.max(coeffs_error_sum, axis=1)
+    residuals_error = np.absolute(spline_params['residuals'] - spline_params_buffer['residuals'])
+    derivatives_error = np.absolute(spline_params['derivatives'] - spline_params_buffer['derivatives'])
+    derivatives_error_max = np.max(derivatives_error[..., 0], axis=1)
+    errors = {"length_error": length_error, "coeffs_error_max":  coeffs_error_max, "residuals_error": residuals_error,
+              "derivatives_error_max": derivatives_error_max}
+    return errors

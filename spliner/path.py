@@ -6,6 +6,8 @@ class Path:
     def __init__(self, coordinates, length):
         self.coordinates = np.array(coordinates).reshape((-1, 2))
         self.length = length
+        self.x_spline = None
+        self.y_spline = None
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
@@ -24,7 +26,7 @@ class Path:
     def get_spline(self, t):
         """
         Get spline coordinates.
-        :param t: path linespace
+        :param t: path linspace
         :type t: np.array
         :return: x coordinates, y coordinates, x spline, y spline
         :rtype: np.array, np.array, np.array, np.array
@@ -33,11 +35,29 @@ class Path:
         T = np.linspace(0., 1., 128)
         k = 7
         knots = np.linspace(0., 1., k)[1:-1]
-        x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
-        y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
-        x = x_spline(T)
-        y = y_spline(T)
-        return x, y, x_spline, y_spline
+        self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
+        self.y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
+        spline_coords = np.column_stack((self.x_spline(T), self.y_spline(T)))
+        return spline_coords
+
+    def get_spline_params(self):
+        """
+        Get spline parameters:
+            * length - full length of spline including gaps
+            * coeffs - spline coefficients [x, y]
+            * residuals - spline residuals [x, y]
+            * derivatives - spline derivatives [x, y]
+        :return: spline params
+        :rtype: dict
+        """
+        coeffs = np.array([self.x_spline.get_coeffs(), self.y_spline.get_coeffs()])
+        residuals = np.array([self.x_spline.get_residual(), self.y_spline.get_residual()])
+        cps = np.linspace(0, 1, 7)
+
+        derivatives = np.array([[self.x_spline.derivatives([d]) for d in cps[1:-1]],
+                                [self.y_spline.derivatives([d]) for d in cps[1:-1]]])
+
+        return {"length": self.length, "coeffs": coeffs, "residuals": residuals, "derivatives": derivatives}
 
     def get_key(self, buffer):
         """

@@ -34,27 +34,25 @@ def set_morphology(img):
     return img
 
 
-def get_spline_image(x, y, shape):
+def get_spline_image(spline_coords, shape):
     """
     Get an array with (x, y) coordinates set in.
-    :param x: x coordinates
-    :type x: np.array
-    :param y: y coordinates
-    :type y: np.array
+    :param spline_coords: x & y coordinates
+    :type spline_coords: np.array
     :param shape: frame shape (W x H x 3)
     :type shape: tuple
-    :return: spline path as image
+    :return: spline path as an image
     :rtype: np.array
     """
     img_spline = np.zeros(shape=shape)
     keys_to_remove = []
 
-    for key, value in enumerate(x):
-        if x[key] > shape[0] or x[key] < 0 or y[key] > shape[1] or y[key] < 0:
+    for key, value in enumerate(spline_coords):
+        if spline_coords[..., 0][key] > shape[0] or spline_coords[..., 0][key] < 0 or \
+                spline_coords[..., 1][key] > shape[1] or spline_coords[..., 1][key] < 0:
             keys_to_remove.append(key)
-    x = np.delete(x, keys_to_remove)
-    y = np.delete(y, keys_to_remove)
+    spline_coords = np.delete(spline_coords, keys_to_remove, axis=0)
 
-    img_spline[tuple(x.astype(int)), tuple(y.astype(int))] = 1
+    img_spline[spline_coords[..., 0].astype(int), spline_coords[..., 1].astype(int)] = 1
 
     return img_spline
