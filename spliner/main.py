@@ -22,7 +22,7 @@ def init(frame):
     img = set_morphology(img)
 
     # Find path ends
-    paths_ends = find_ends(img=img, max_px_gap=5)
+    paths_ends, _ = find_ends(img=img, max_px_gap=5)
     assert len(paths_ends) <= 2, cv2.imwrite("init_path_error.png", img.astype(np.float64) * 255) and \
                                 "More than 2 paths ends detected. Wrong initialization input. " \
                                 "Image saved as init_path_error.png. Path ends: " + str(paths_ends)
@@ -38,8 +38,9 @@ def init(frame):
     t = np.linspace(0., 1., path.num_points)
     spline_coords = path.get_spline(t=t)
     spline_params = path.get_spline_params()
+    spline_length = path.length
 
-    return spline_coords, spline_params, img.astype(np.float64) * 255
+    return spline_coords, spline_params, spline_length, img.astype(np.float64) * 255
 
 
 def main(frame, buffer):
@@ -49,8 +50,8 @@ def main(frame, buffer):
     # Get image skeleton
     img = set_morphology(img)
 
-    # Find paths ends
-    paths_ends = find_ends(img=img, max_px_gap=5)
+    # Find paths ends and remove branches connection
+    paths_ends, img = find_ends(img=img, max_px_gap=5)
 
     # Create paths
     paths = []
@@ -61,7 +62,7 @@ def main(frame, buffer):
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends)
 
     # Get rid of too short paths
-    paths = [p for p in paths if p.num_points > 3]
+    paths = [p for p in paths if p.num_points > 10]
 
     # Compare buffer with paths and get paths sequence
     paths_keys = []
@@ -89,12 +90,13 @@ def main(frame, buffer):
     merged_path = Path(coordinates=merged_paths, length=full_length)
     spline_coords = merged_path.get_spline(t=t)
     spline_params = merged_path.get_spline_params()
+    spline_length = merged_path.length
 
-    return spline_coords, spline_params, img.astype(np.float64) * 255
+    return spline_coords, spline_params, spline_length, img.astype(np.float64) * 255
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(4)
+    cap = cv2.VideoCapture(6)
 
     # Skip blank frames
     for i in range(100):
@@ -102,13 +104,13 @@ if __name__ == "__main__":
 
     # Initialization spline
     _, frame = cap.read()
-    spline_coords_buffer, spline_params_buffer, img_skeleton = init(frame)
+    spline_coords_buffer, spline_params_buffer, spline_length_buffer, img_skeleton = init(frame)
 
     while True:
         _, frame = cap.read()
 
         # Get spline coordinates
-        spline_coords, spline_params, img_skeleton = main(frame, spline_coords_buffer)
+        spline_coords, spline_params, spline_length, img_skeleton = main(frame, spline_coords_buffer)
 
         # Calculate error
         # dst = np.linalg.norm(spline_coords[:, np.newaxis] - spline_coords_buffer[np.newaxis], axis=-1)
@@ -118,11 +120,15 @@ if __name__ == "__main__":
         errors = get_errors(spline_params, spline_params_buffer)
         err = np.max(errors['coeffs_error_max'])
 
+        length_diff = spline_length - spline_length_buffer
+        print("Diff length: ", length_diff)
+
         # Check error
-        if err < 100:
+        if np.fabs(length_diff) < 100:
             # Write buffer variable for next loop
             spline_coords_buffer = spline_coords
             spline_params_buffer = spline_params
+            spline_length_buffer = spline_length
             # Convert spline coordinates to image frame
             img_spline = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
         else:

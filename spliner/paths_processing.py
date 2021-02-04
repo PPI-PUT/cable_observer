@@ -1,33 +1,37 @@
 import numpy as np
-
+from copy import deepcopy
 
 def find_ends(img, max_px_gap):
     """
-    Find the ends of paths assuming that each end has one neighbor.
+    Find the ends of paths assuming that each end has one neighbor and remove branches.
     :param img: skeletonized paths
     :type img: np.array
     :param max_px_gap: maximum pixel gap between paths ends in terms of remove similar points
     :type max_px_gap: int
-    :return: all coordinates with a single neighbor
-    :rtype: np.array
+    :return: all coordinates with a single neighbor, skeleton image without branches
+    :rtype: np.array, np.array
     """
     # Add border to image frame
-    img = np.pad(img, pad_width=1, mode='constant', constant_values=0)
+    img_workspace = deepcopy(img)
+    img_workspace = np.pad(img_workspace, pad_width=1, mode='constant', constant_values=0)
+    coords_to_unset = []
 
     # Find all coordinates with less than 2 neighbors
-    path_indices = np.nonzero(img)
+    path_indices = np.nonzero(img_workspace)
     path_indices = np.vstack((path_indices[0], path_indices[1])).T
     path_ends_workspace = np.empty((0, 2))
-    for current_cord in path_indices:
+    for key, current_cord in enumerate(path_indices):
         neighbors = 0
         for i in range(-1, 2):
             for j in range(-1, 2):
                 if i == 0 and j == 0:
                     continue
-                if img[current_cord[0] + i, current_cord[1] + j]:
+                if img_workspace[current_cord[0] + i, current_cord[1] + j]:
                     neighbors += 1
         if neighbors < 2:
             path_ends_workspace = np.append(path_ends_workspace, [np.flip(current_cord)], axis=0)
+        if neighbors > 2:
+            coords_to_unset.append(current_cord - 1)
 
     # Skip similar coordinates using maximum gap between points
     keys_to_skip = []
@@ -37,7 +41,16 @@ def find_ends(img, max_px_gap):
                 keys_to_skip.append(key)
     path_ends_workspace = np.delete(path_ends_workspace, keys_to_skip, axis=0)
     path_ends_workspace = list(map(list, path_ends_workspace - 1))
-    return path_ends_workspace
+
+    # Remove branches connections and related ends within 3x3 kernel
+    for coord in coords_to_unset:
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                img[coord[0] + i, coord[1] + j] = False
+                if [coord[0] + i, coord[1] + j] in path_ends_workspace:
+                    path_ends_workspace.remove([coord[0] + i, coord[1] + j])
+
+    return path_ends_workspace, img
 
 
 def remove_close_points(last_point, path_ends, max_px_gap=10):
@@ -178,7 +191,7 @@ def keys_to_sequence(keys):
     Remap keys sequence to indices sequence.
     :param keys: keys sequence
     :type keys: list
-    :return: indices sequence
+    :return: sequence indices
     :rtype: list
     """
     max_workspace = max(keys) + 1
@@ -201,9 +214,9 @@ def reorder_paths(paths, sequence):
     :return: ordered paths
     :rtype: list
     """
-    new_paths_sequence = []
-    for path_key in sequence:
-        new_paths_sequence.append(paths[path_key])
+    new_paths_sequence = [None] * len(sequence)
+    for key, value in enumerate(sequence):
+        new_paths_sequence[value] = paths[key]
     return new_paths_sequence
 
 
