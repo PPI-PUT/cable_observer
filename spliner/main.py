@@ -96,19 +96,23 @@ def main(frame, buffer):
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(6)
+    #cap = cv2.VideoCapture(6)
+    cap = cv2.VideoCapture("output.avi")
+    #fourcc = cv2.VideoWriter_fourcc(*'RGBA')
+    #out = cv2.VideoWriter('output.avi', fourcc, 30.0, (640, 480))
 
     # Skip blank frames
-    for i in range(100):
-        _, frame = cap.read()
+    #for i in range(100):
+    #    _, frame = cap.read()
 
     # Initialization spline
     _, frame = cap.read()
+
     spline_coords_buffer, spline_params_buffer, spline_length_buffer, img_skeleton = init(frame)
 
     while True:
         _, frame = cap.read()
-
+        #out.write(frame)
         # Get spline coordinates
         spline_coords, spline_params, spline_length, img_skeleton = main(frame, spline_coords_buffer)
 
@@ -124,7 +128,7 @@ if __name__ == "__main__":
         print("Diff length: ", length_diff)
 
         # Check error
-        if np.fabs(length_diff) < 100:
+        if np.fabs(length_diff) < 10000:
             # Write buffer variable for next loop
             spline_coords_buffer = spline_coords
             spline_params_buffer = spline_params
@@ -136,7 +140,7 @@ if __name__ == "__main__":
             img_spline = get_spline_image(spline_coords=spline_coords_buffer, shape=frame.shape)
 
         # Show outputs
-        cv2.imshow('spline', img_spline)
+        cv2.imshow('spline', img_spline.astype(np.float64) * 255)
         cv2.imshow('frame', img_skeleton)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
