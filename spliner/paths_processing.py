@@ -283,3 +283,61 @@ def get_errors(spline_params, spline_params_buffer):
     errors = {"length_error": length_error, "coeffs_error_max":  coeffs_error_max, "residuals_error": residuals_error,
               "derivatives_error_max": derivatives_error_max}
     return errors
+
+
+def sort_paths(paths):
+    # calculate dists between all endings
+    MAX = 1e10
+    l = len(paths)
+    begins = np.array([p.begin for p in paths])
+    ends = np.array([p.end for p in paths])
+    be = np.concatenate([begins, ends], axis=0)
+    dists = np.linalg.norm(be[np.newaxis] - be[:, np.newaxis], axis=-1)
+    dists[np.arange(2 * l), (np.arange(2 * l) + l) % (2 * l)] = MAX
+    dists[np.arange(2 * l), np.arange(2 * l)] = MAX
+
+
+    # greadily choose connections
+    conn = []
+    skips = {}
+    w = 0
+    while True:
+        m = np.argmin(dists)
+        mx = m // (2*l)
+        my = m % (2*l)
+        dists[mx] = MAX
+        dists[:, my] = MAX
+        dists[my] = MAX
+        dists[:, mx] = MAX
+        if (dists == MAX).all():
+            break
+        conn.append([mx % l, my % l])
+        skips[mx] = my
+        skips[my] = mx
+        w += 1
+        if w > 20:
+            print("XD")
+
+    # find starting index
+    z = np.array(conn)
+    unique, counts = np.unique(z, return_counts=True)
+    start_id = 0
+    for k in range(len(counts)):
+        if counts[k] == 1:
+            start_id = k
+            break
+
+    # traverse and build path
+    resultant_paths = []
+    act_id = start_id if start_id in skips else start_id + l
+    while True:
+        p = paths[act_id % l]
+        if act_id < l:
+            p.flip_path()
+        resultant_paths.append(p)
+        if act_id not in skips:
+            break
+        act_id = skips[act_id]
+        act_id = act_id + l if act_id < l else act_id - l
+
+    return resultant_paths
