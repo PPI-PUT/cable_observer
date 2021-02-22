@@ -11,6 +11,11 @@ class Path:
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
+        if self.length > 10:
+            bv = self.coordinates[0] - self.coordinates[5]
+            ev = self.coordinates[-1] - self.coordinates[-6]
+            self.begin_direction = np.arctan2(bv[0], bv[1])
+            self.end_direction = np.arctan2(ev[0], ev[1])
 
     def __call__(self):
         return self.coordinates
@@ -33,8 +38,9 @@ class Path:
         """
         xys = np.stack(self.coordinates, axis=0)
         T = np.linspace(0., 1., 128)
-        k = 7
-        knots = np.linspace(0., 1., k)[1:-1]
+        k = 15 - 4
+        d = int((t.shape[0] - 2) / k) + 1
+        knots = t[1:-1:d]
         self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
         self.y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
         spline_coords = np.column_stack((self.x_spline(T), self.y_spline(T)))
