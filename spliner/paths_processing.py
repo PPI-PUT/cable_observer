@@ -287,15 +287,22 @@ def get_errors(spline_params, spline_params_buffer):
 
 def sort_paths(paths):
     # calculate dists between all endings
+    m = 0.05
     MAX = 1e10
     l = len(paths)
     begins = np.array([p.begin for p in paths])
     ends = np.array([p.end for p in paths])
+    begin_directions = np.array([p.begin_direction for p in paths])
+    end_directions = np.array([p.end_direction for p in paths])
     be = np.concatenate([begins, ends], axis=0)
     dists = np.linalg.norm(be[np.newaxis] - be[:, np.newaxis], axis=-1)
+    be_dirs = np.concatenate([begin_directions, end_directions], axis=0)
+    dists_dirs = np.abs(np.pi - np.abs(be_dirs[np.newaxis] - be_dirs[:, np.newaxis]))
+
+    dists = m * dists + (1 - m) * dists_dirs
+
     dists[np.arange(2 * l), (np.arange(2 * l) + l) % (2 * l)] = MAX
     dists[np.arange(2 * l), np.arange(2 * l)] = MAX
-
 
     # greadily choose connections
     conn = []

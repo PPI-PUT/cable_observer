@@ -53,6 +53,28 @@ def get_spline_image(spline_coords, shape):
             keys_to_remove.append(key)
     spline_coords = np.delete(spline_coords, keys_to_remove, axis=0)
 
-    img_spline[spline_coords[..., 0].astype(int), spline_coords[..., 1].astype(int)] = 1
+    u = spline_coords[..., 0].astype(int)
+    v = spline_coords[..., 1].astype(int)
+    for i in range(-1, 2):
+        for j in range(-1, 2):
+            img_spline[u+i, v+j] = 1
 
     return img_spline
+
+
+def remove_if_more_than_3_neighbours(img):
+    kernel = np.ones((3, 3), dtype=np.float32) / 3
+    img = img.astype(np.float32)
+    less_than_3 = cv2.filter2D(img, -1, kernel) <= 1
+    r = img * less_than_3.astype(np.float32)
+    return r.astype(np.bool)
+
+
+def find_ends(img):
+    kernel = np.ones((3, 3), dtype=np.float32) / 2
+    img = img.astype(np.float32)
+    less_than_3 = cv2.filter2D(img, -1, kernel) <= 1
+    r = img * less_than_3.astype(np.float32)
+    idx = np.where(r > 0)
+    idx = [[idx[1][i], idx[0][i]] for i in range(len(idx[0]))]
+    return idx
