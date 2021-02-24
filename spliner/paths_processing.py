@@ -1,5 +1,8 @@
+from time import time
+
 import numpy as np
 from copy import deepcopy
+
 
 def find_ends(img, max_px_gap):
     """
@@ -73,22 +76,17 @@ def remove_close_points(last_point, path_ends, max_px_gap=10):
     return path_ends.tolist()
 
 
+dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
+dxy = np.stack(dxy, axis=-1)
+dxy = dxy[:, :, ::-1]
+
+
 def walk_fast(skel, start):
-    skel = np.pad(skel, [[1, 1], [1, 1]], 'constant', constant_values=False)
-    length = 0
     path = [(int(start[1]) + 1, int(start[0]) + 1)]
-    colors = ['r', 'g', 'b']
-    dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
-    dxy = np.stack(dxy, axis=-1)
-    dxy = dxy[:, :, ::-1]
     card = 1
-    i = 0
     while card > 0:
         act = path[-1]
-
         skel[act[0], act[1]] = 0.
-        if len(path) > 3:
-            skel[path[-4][0], path[-4][1]] = 1.
 
         patch = skel[act[0] - 1: act[0] + 2, act[1] - 1: act[1] + 2]
         xy = dxy + act
@@ -97,40 +95,33 @@ def walk_fast(skel, start):
         card = b.shape[0]
         if card == 1:
             aim = b[0].astype(np.int32)
-        elif card > 1:
-            v = np.array(act) - np.array(path[-min(5, len(path))])
-            direction = v / np.linalg.norm(v)
-            new = np.array(act) + direction
-            dists = np.linalg.norm(new - b, axis=-1)
-            min_idx = np.argmin(dists)
-            aim = b[min_idx].astype(np.int32)
         else:
             break
 
-        length += np.linalg.norm(np.array(act) - np.array(aim))
         path.append((aim[0], aim[1]))
-        i += 1
-    path = [(a[0] - 1, a[1] - 1) for a in path]
+    path = np.array(path)
+    length = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
+    path -= 1
     return path, length
 
 
 def walk(img, skel, start, r, d):
-    pad = int(1.5*r)
+    pad = int(1.5 * r)
     skel = np.pad(skel, [[pad, pad], [pad, pad]], 'constant', constant_values=False)
     img = np.pad(img, [[pad, pad], [pad, pad]], 'constant', constant_values=False)
     path = [(int(start[1]) + pad, int(start[0]) + pad)]
-    #path = [start]
-    #colors = ['r', 'g', 'b']
+    # path = [start]
+    # colors = ['r', 'g', 'b']
     aim = np.array([0, 0])
     patch = np.array([True, True])
     radius = 1
     length = 0.
     for i in range(100):
-        #act = np.array([path[-1][1], path[-1][0]])
+        # act = np.array([path[-1][1], path[-1][0]])
         act = np.array(path[-1])
         act_r = np.around(act).astype(np.int32)
         if i > 0:
-            #prev = np.array([path[-2][1], path[-2][0]])
+            # prev = np.array([path[-2][1], path[-2][0]])
             prev = np.array(path[-2])
             new = act + (act - prev)
             new = np.around(new).astype(np.int32)
@@ -165,7 +156,7 @@ def walk(img, skel, start, r, d):
             pts = np.concatenate(pts, axis=0)
 
             if len(path) > 1:
-                #prev = np.array([path[-2][1], path[-2][0]])
+                # prev = np.array([path[-2][1], path[-2][0]])
                 prev = np.array(path[-2])
                 dists = np.sum(np.abs(pts - prev), axis=-1)
                 pts = pts[dists >= r - 1]
@@ -180,7 +171,7 @@ def walk(img, skel, start, r, d):
             break
 
         length += np.linalg.norm(np.array(act) - np.array(aim))
-        #plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
+        # plt.plot([act[1], aim[1]], [act[0], aim[0]], colors[i % 3])
         path.append((aim[0], aim[1]))
     path = [(a[0] - pad, a[1] - pad) for a in path]
     return path, length
@@ -280,7 +271,7 @@ def get_errors(spline_params, spline_params_buffer):
     residuals_error = np.absolute(spline_params['residuals'] - spline_params_buffer['residuals'])
     derivatives_error = np.absolute(spline_params['derivatives'] - spline_params_buffer['derivatives'])
     derivatives_error_max = np.max(derivatives_error[..., 0], axis=1)
-    errors = {"length_error": length_error, "coeffs_error_max":  coeffs_error_max, "residuals_error": residuals_error,
+    errors = {"length_error": length_error, "coeffs_error_max": coeffs_error_max, "residuals_error": residuals_error,
               "derivatives_error_max": derivatives_error_max}
     return errors
 
@@ -310,8 +301,8 @@ def sort_paths(paths):
     w = 0
     while True:
         m = np.argmin(dists)
-        mx = m // (2*l)
-        my = m % (2*l)
+        mx = m // (2 * l)
+        my = m % (2 * l)
         dists[mx] = MAX
         dists[:, my] = MAX
         dists[my] = MAX

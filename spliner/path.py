@@ -13,6 +13,7 @@ class Path:
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
         self.T = np.linspace(0., 1., 128)
+        self.k = 35
         if self.length > 10:
             bv = self.coordinates[0] - self.coordinates[5]
             ev = self.coordinates[-1] - self.coordinates[-6]
@@ -39,7 +40,7 @@ class Path:
         :rtype: np.array, np.array, np.array, np.array
         """
         xys = np.stack(self.coordinates, axis=0)
-        k = 25 - 4
+        k = self.k - 4
         d = int((t.shape[0] - 2) / k) + 1
         knots = t[1:-1:d]
         self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
@@ -102,11 +103,26 @@ class Path:
         y_normal_seq = np.around(
             y[:, np.newaxis] + n / div * normal_emp[:, -1:] * (np.linspace(-1., 1., 2 * n)[np.newaxis])).astype(np.int32)
         r = mask[x_normal_seq, y_normal_seq]
-        width = np.sum(r, axis=-1)
+        width = np.sum(r, axis=-1) / div
         #mean_width = np.mean(width) / div
-        mean_width = np.median(width) / div
-        print("WIDTH:", mean_width)
+        mean_width = np.median(width)
+        #print("WIDTH:", mean_width)
         lower_bound = spline_coords + normal_emp * mean_width / 2
         upper_bound = spline_coords - normal_emp * mean_width / 2
+        #lower_bound = spline_coords + normal_emp * width[:, np.newaxis] / 2
+        #upper_bound = spline_coords - normal_emp * width[:, np.newaxis] / 2
+        k = self.k - 4
+        d = int((self.T.shape[0] - 2) / k) + 1
+        knots = self.T[1:-1:d]
+        x_spline = LSQUnivariateSpline(self.T, upper_bound[:, 0], knots)
+        y_spline = LSQUnivariateSpline(self.T, upper_bound[:, 1], knots)
+        upper_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+        #plt.plot(x_spline(self.T), y_spline(self.T), 'r')
+        x_spline = LSQUnivariateSpline(self.T, lower_bound[:, 0], knots)
+        y_spline = LSQUnivariateSpline(self.T, lower_bound[:, 1], knots)
+        lower_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+        #plt.plot(x_spline(self.T), y_spline(self.T), 'b')
+        #plt.show()
+
 
         return lower_bound, upper_bound

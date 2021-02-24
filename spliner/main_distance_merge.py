@@ -26,8 +26,9 @@ def main(frame, lsc):
     t3 = time()
     # Create paths
     paths = []
+    skel = np.pad(img, [[1, 1], [1, 1]], 'constant', constant_values=False)
     while len(paths_ends) > 0:
-        coordinates, length = walk_fast(img, tuple(paths_ends[0]))
+        coordinates, length = walk_fast(skel, tuple(paths_ends[0]))
         paths.append(Path(coordinates=coordinates, length=length))
         paths_ends.pop(0)
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends, max_px_gap=1)
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     poc = []
     w = 0
     last_spline_coords = None
-    plot = True
+    plot = False
     while True:
         t0 = time()
         _, frame = cap.read()
