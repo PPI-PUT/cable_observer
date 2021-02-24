@@ -15,7 +15,7 @@ def set_mask(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     o = np.ones_like(hsv)[..., 0].astype(np.float32)
     z = np.zeros_like(o)
-    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 160.), hsv[..., 1] > 100), o, z)
+    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 170.), hsv[..., 1] > 180), o, z)
     return img
 
 

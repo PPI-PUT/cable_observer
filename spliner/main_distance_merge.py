@@ -6,10 +6,11 @@ from paths_processing import walk_fast, remove_close_points, get_gaps_length, ge
 from path import Path
 import matplotlib.pyplot as plt
 
-def main(frame):
+def main(frame, lsc):
     t0 = time()
     # Preprocess image
     img = set_mask(frame)
+    mask = img
 
     t1 = time()
     # Get image skeleton
@@ -55,6 +56,13 @@ def main(frame):
     spline_coords = merged_path.get_spline(t=t)
     spline_params = merged_path.get_spline_params()
     t6 = time()
+    if lsc is not None:
+        dist1 = np.sum(np.abs(lsc[0] - spline_coords[0]) + np.abs(lsc[-1] - spline_coords[-1]))
+        dist2 = np.sum(np.abs(lsc[-1] - spline_coords[0]) + np.abs(lsc[0] - spline_coords[-1]))
+        if dist2 < dist1:
+            spline_coords = spline_coords[::-1]
+            spline_params['coeffs'] = spline_params['coeffs'][:, ::-1]
+    lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords)
 
     print("INNER T1", t1 - t0)
     print("INNER T2", t2 - t1)
@@ -63,12 +71,12 @@ def main(frame):
     print("INNER T5", t5 - t4)
     print("INNER T6", t6 - t5)
 
-    return spline_coords, spline_params, img.astype(np.float64) * 255
+    return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(2)
-    #cap = cv2.VideoCapture("~/Videos/kabel.avi")
+    #cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture("./output_v4_short.avi")
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 
@@ -76,21 +84,57 @@ if __name__ == "__main__":
     for i in range(100):
         _, frame = cap.read()
 
+    cps = []
+    poc = []
+    w = 0
+    last_spline_coords = None
+    plot = True
     while True:
         t0 = time()
         _, frame = cap.read()
 
         # Get spline coordinates
         t1 = time()
-        spline_coords, spline_params, img_skeleton = main(frame)
+        spline_coords, spline_params, img_skeleton, mask, lower_bound, upper_bound = main(frame, last_spline_coords)
+        last_spline_coords = spline_coords
         t2 = time()
 
         img_spline = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
         t3 = time()
+        if plot:
+            img_low = get_spline_image(spline_coords=lower_bound, shape=frame.shape)
+            img_up = get_spline_image(spline_coords=upper_bound, shape=frame.shape)
+            img_spline = np.stack([img_low[:, :, 0], img_spline[:, :, 1], img_up[:, :, 2]], axis=-1)
+
+            idx = np.where(np.any(img_spline, axis=-1))
+            #frame[idx[0], idx[1], 1] = (255*img_spline[idx[0], idx[1], 1]).astype(np.uint8)
+            frame[idx[0], idx[1]] = (255*img_spline[idx[0], idx[1]]).astype(np.uint8)
+
+            z = np.zeros_like(mask)
+            mask = np.stack([mask, z, z], axis=-1)
+            mask[idx[0], idx[1], 1] = img_spline[idx[0], idx[1], 1]
+
+            z = np.zeros_like(img_skeleton)
+            img_skeleton = np.stack([img_skeleton, z, z], axis=-1)
+            img_skeleton[idx[0], idx[1], 1] = img_spline[idx[0], idx[1], 1]
+
+            coeffs = spline_params['coeffs'].astype(np.int32)
+            for i in range(-2, 3):
+                for j in range(-2, 3):
+                    frame[coeffs[0] + i, coeffs[1] + j, :] = np.array([0, 0, 255], dtype=np.uint8)
+            cps.append(coeffs)
+            k = 25
+            d = int(spline_coords.shape[0] / k) + 1
+            poc.append(spline_coords[::d])
+        if w > 300:
+            break
+        w += 1
 
         # Show outputs
         cv2.imshow('spline', img_spline)
-        cv2.imshow('frame', img_skeleton)
+        cv2.imshow('skel', img_skeleton)
+        cv2.imshow('frame', frame)
+        cv2.imshow('mask', mask)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         t4 = time()
@@ -99,6 +143,21 @@ if __name__ == "__main__":
         print("T3", t3 - t2)
         print("T4", t4 - t3)
         print("T ALL", t4 - t0)
+
+    if plot:
+        cps = np.stack(cps, axis=0)
+        #for i in range(2):
+        for i in range(cps.shape[-1]):
+            plt.plot(cps[:, 0, i], cps[:, 1, i], label=str(i))
+        plt.legend()
+        plt.show()
+
+        poc = np.stack(poc, axis=0)
+        for i in range(poc.shape[1]):
+            plt.plot(poc[:, i, 0], poc[:, i, 1], label=str(i))
+        plt.legend()
+        plt.show()
+
 
     cap.release()
     cv2.destroyAllWindows()
