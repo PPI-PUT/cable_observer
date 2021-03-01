@@ -99,8 +99,9 @@ class Path:
         :return: lower and upper bound spline coordinates of the DLO
         :rtype: np.array, np.array
         """
-        x = spline_coords[:, 0]
-        y = spline_coords[:, 1]
+        mask = np.pad(mask, [[self.max_width, self.max_width], [self.max_width, self.max_width]], 'constant', constant_values=False)
+        x = spline_coords[:, 0] + 40
+        y = spline_coords[:, 1] + 40
         normal_emp = np.diff(spline_coords, axis=0)
         normal_emp = np.stack([-normal_emp[:, 1], normal_emp[:, 0]], axis=-1)
         normal_emp = normal_emp / np.linalg.norm(normal_emp, axis=-1, keepdims=True)
@@ -121,9 +122,9 @@ class Path:
         knots = self.T[1:-1:d]
         x_spline = LSQUnivariateSpline(self.T, upper_bound[:, 0], knots)
         y_spline = LSQUnivariateSpline(self.T, upper_bound[:, 1], knots)
-        upper_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+        upper_bound = np.column_stack((x_spline(self.T), y_spline(self.T))) - self.max_width
         x_spline = LSQUnivariateSpline(self.T, lower_bound[:, 0], knots)
         y_spline = LSQUnivariateSpline(self.T, lower_bound[:, 1], knots)
-        lower_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+        lower_bound = np.column_stack((x_spline(self.T), y_spline(self.T))) - self.max_width
 
         return lower_bound, upper_bound

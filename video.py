@@ -5,7 +5,7 @@ from utils.tracking import track
 
 if __name__ == "__main__":
     #cap = cv2.VideoCapture(2)
-    cap = cv2.VideoCapture("videos/001_.avi")
+    cap = cv2.VideoCapture("videos/output.avi")
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 
