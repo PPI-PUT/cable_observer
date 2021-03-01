@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
-from scipy.ndimage import binary_fill_holes
-from skimage.morphology import skeletonize, erosion, dilation
+from skimage.morphology import skeletonize
 
 
 def set_mask(frame):
@@ -27,9 +26,6 @@ def set_morphology(img):
     :return: processed frame
     :rtype: np.array
     """
-    #img = binary_fill_holes(img)
-    #img = erosion(img)
-    #img = dilation(img)
     img = cv2.erode(img, np.ones((3, 3)))
     img = cv2.dilate(img, np.ones((3, 3)))
     skel = skeletonize(img, method='lee') > 0
@@ -59,7 +55,7 @@ def get_spline_image(spline_coords, shape):
     v = spline_coords[..., 1].astype(int)
     for i in range(-1, 2):
         for j in range(-1, 2):
-            img_spline[u+i, v+j] = 1
+            img_spline[u + i, v + j] = 1
 
     return img_spline
 

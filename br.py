@@ -7,7 +7,7 @@ import cv2
 import tensorflow as tf
 from skimage.morphology import skeletonize, medial_axis
 
-from models.observer_bezier import Cable, curve_loss, _plot
+from models.observer_spline import Cable, curve_loss, _plot
 
 
 class CameraReader:
