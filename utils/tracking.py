@@ -1,5 +1,6 @@
 from utils.image_processing import set_mask, set_morphology, find_ends, remove_if_more_than_3_neighbours
-from utils.paths_processing import walk_fast, remove_close_points, get_gaps_length, get_linespaces, sort_paths
+from utils.paths_processing import walk_fast, remove_close_points, get_gaps_length, get_linespaces, sort_paths, \
+    walk_faster
 from utils.path import Path
 import numpy as np
 
@@ -7,10 +8,9 @@ import numpy as np
 def track(frame, lsc, masked=False):
     # Preprocess image
     img = frame if masked else set_mask(frame)
-    mask = img
 
     # Get image skeleton
-    img = set_morphology(img)
+    img, mask = set_morphology(img)
 
     img = remove_if_more_than_3_neighbours(img)
 
@@ -21,10 +21,11 @@ def track(frame, lsc, masked=False):
     paths = []
     skel = np.pad(img, [[1, 1], [1, 1]], 'constant', constant_values=False)
     while len(paths_ends) > 0:
-        coordinates, length = walk_fast(skel, tuple(paths_ends[0]))
+        coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
         paths.append(Path(coordinates=coordinates, length=length))
         paths_ends.pop(0)
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends, max_px_gap=1)
+
 
     # Get rid of too short paths
     paths = [p for p in paths if p.num_points > 3]
@@ -55,6 +56,7 @@ def track(frame, lsc, masked=False):
         if dist2 < dist1:
             spline_coords = spline_coords[::-1]
             spline_params['coeffs'] = spline_params['coeffs'][:, ::-1]
-    lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords)
+    #lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=False)
+    lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=True)
 
     return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound

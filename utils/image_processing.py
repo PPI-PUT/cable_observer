@@ -28,8 +28,9 @@ def set_morphology(img):
     """
     img = cv2.erode(img, np.ones((3, 3)))
     img = cv2.dilate(img, np.ones((3, 3)))
+    mask = img
     skel = skeletonize(img, method='lee') > 0
-    return skel
+    return skel, mask
 
 
 def get_spline_image(spline_coords, shape):

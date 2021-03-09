@@ -60,6 +60,37 @@ def walk_fast(skel, start):
     return path, length
 
 
+def walk_faster(skel, start):
+    """
+    Perform a fast walk through the DLO skeleton 'skel' tarting from 'start'
+    :param skel: skeleton of the DLO mask
+    :type skel: np.array
+    :param start: on of the DLO ends
+    :type start: np.array
+    :return: sequence of pixels which constitutes a DLO and its length
+    :rtype: np.array, float
+    """
+    path = [(int(start[1]) + 1, int(start[0]) + 1)]
+    while True:
+        end = True
+        act = path[-1]
+        skel[act[0], act[1]] = 0.
+        for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            if skel[act[0] + dx, act[1] + dy]:
+                aim_x = act[0] + dx
+                aim_y = act[1] + dy
+                path.append((aim_x, aim_y))
+                end = False
+                break
+        if end:
+            break
+
+    path = np.array(path)
+    length = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
+    path -= 1
+    return path, length
+
+
 def get_gaps_length(paths):
     """
     Get gaps lengths between adjacent paths.
