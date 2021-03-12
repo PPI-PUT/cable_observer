@@ -1,3 +1,5 @@
+from time import time
+
 import cv2
 import numpy as np
 from skimage.morphology import skeletonize
@@ -59,23 +61,34 @@ def process_image(img):
     :return: (skeletonized image, indexes of the pixels which are considered to be DLO ends)
     :rtype: (np.array, list)
     """
+    t0 = time()
     # find a sub-image containing mask
     x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
+    t1 = time()
     # skeletonize
     skel = skeletonize(img[y:y + h, x:x + w], method='lee') / 255.  # > 0
+    t2 = time()
     # remove more than 3 neighbours
     kernel = np.ones((3, 3), dtype=np.float32)
     less_than_3 = cv2.filter2D(skel, -1, kernel / 3) <= 1. + 1e-6
     skel = skel * less_than_3.astype(np.float32)
+    t3 = time()
 
     # find ends
     less_than_3 = cv2.filter2D(skel, -1, kernel / 2) <= 1
     r = skel * less_than_3.astype(np.float32)
     idx = np.where(r > 0)
     idx = [[idx[1][i] + x, idx[0][i] + y] for i in range(len(idx[0]))]
+    t4 = time()
 
     img = np.zeros_like(img)
     img[y:y + h, x:x + w] = skel
+    t5 = time()
+    print("IM_PROC 1:", t1 - t0)
+    print("IM_PROC 2:", t2 - t1)
+    print("IM_PROC 3:", t3 - t2)
+    print("IM_PROC 4:", t4 - t3)
+    print("IM_PROC 5:", t5 - t4)
     return img, idx
 
 
