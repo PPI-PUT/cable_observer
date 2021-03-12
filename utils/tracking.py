@@ -1,21 +1,21 @@
-from utils.image_processing import set_mask, set_morphology, find_ends, remove_if_more_than_3_neighbours
+import cv2
+
+from utils.image_processing import set_mask, process_image, preprocess_image
 from utils.paths_processing import walk_fast, remove_close_points, get_gaps_length, get_linespaces, sort_paths, \
     walk_faster
 from utils.path import Path
 import numpy as np
+from time import time
 
 
 def track(frame, lsc, masked=False):
+    t0 = time()
     # Preprocess image
-    img = frame if masked else set_mask(frame)
-
+    mask = preprocess_image(frame, masked)
     # Get image skeleton
-    img, mask = set_morphology(img)
-
-    img = remove_if_more_than_3_neighbours(img)
-
-    # Find paths ends
-    paths_ends = find_ends(img)
+    t1 = time()
+    img, paths_ends = process_image(mask)
+    t2 = time()
 
     # Create paths
     paths = []
@@ -25,6 +25,7 @@ def track(frame, lsc, masked=False):
         paths.append(Path(coordinates=coordinates, length=length))
         paths_ends.pop(0)
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends, max_px_gap=1)
+    t3 = time()
 
 
     # Get rid of too short paths
@@ -33,6 +34,7 @@ def track(frame, lsc, masked=False):
 
     if len(paths) > 1:
         paths = sort_paths(paths)
+    t4 = time()
 
     # Calculate gaps between adjacent paths
     gaps_length = get_gaps_length(paths=paths)
@@ -48,6 +50,7 @@ def track(frame, lsc, masked=False):
     merged_path = Path(coordinates=merged_paths, length=full_length)
     spline_coords = merged_path.get_spline(t=t)
     spline_params = merged_path.get_spline_params()
+    t5 = time()
 
     # get bounds of a DLO
     if lsc is not None:
@@ -59,4 +62,4 @@ def track(frame, lsc, masked=False):
     #lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=False)
     lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=True)
 
-    return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound
+    return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound, [t0, t1, t2, t3, t4, t5]

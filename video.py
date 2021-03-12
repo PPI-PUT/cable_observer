@@ -1,3 +1,5 @@
+from time import time
+
 import cv2
 import numpy as np
 from utils.image_processing import get_spline_image
@@ -6,6 +8,7 @@ from utils.tracking import track
 if __name__ == "__main__":
     #cap = cv2.VideoCapture(2)
     #cap = cv2.VideoCapture("videos/output.avi")
+    #cap = cv2.VideoCapture("videos/output_v4_short.avi")
     cap = cv2.VideoCapture("videos/output_v4.avi")
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -21,8 +24,17 @@ if __name__ == "__main__":
     while True:
         _, frame = cap.read()
 
+        t0 = time()
         # Get spline coordinates
-        spline_coords, spline_params, img_skeleton, mask, lower_bound, upper_bound = track(frame, last_spline_coords)
+        spline_coords, spline_params, img_skeleton, mask, lower_bound, upper_bound, t = track(frame, last_spline_coords)
+        t1 = time()
+        print("TIME", t1 - t0)
+        ts = 0
+        for i in range(1, len(t)):
+            print("T", i, t[i] - t[i-1])
+            ts += (t[i] - t[i-1])
+        print("TIME OURS", ts)
+
         last_spline_coords = spline_coords
 
         img_spline = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
@@ -45,17 +57,21 @@ if __name__ == "__main__":
             coeffs = spline_params['coeffs'].astype(np.int32)
             for i in range(-2, 3):
                 for j in range(-2, 3):
-                    frame[coeffs[0] + i, coeffs[1] + j, :] = np.array([0, 0, 255], dtype=np.uint8)
+                    frame[np.clip(coeffs[0] + i, 0, frame.shape[0] - 1), np.clip(coeffs[1] + j, 0, frame.shape[1] - 1), :] =\
+                        np.array([0, 0, 255], dtype=np.uint8)
             cps.append(coeffs)
             k = 25
             d = int(spline_coords.shape[0] / k) + 1
             poc.append(spline_coords[::d])
 
         # Show outputs
-        cv2.imshow('spline', img_spline)
-        cv2.imshow('skel', img_skeleton)
+        #cv2.imshow('spline', img_spline)
+        #cv2.imshow('skel', img_skeleton)
         cv2.imshow('frame', frame)
-        cv2.imshow('mask', mask)
+        #cv2.imshow('mask', mask)
+        #cv2.imshow('pred', pred)
+        #cv2.imshow('imu', imu)
+        #cv2.imshow('umi', umi)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

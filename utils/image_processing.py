@@ -18,21 +18,6 @@ def set_mask(frame):
     return img
 
 
-def set_morphology(img):
-    """
-    Get skeleton representation of paths.
-    :param img: preprocessed frame
-    :type img: np.array
-    :return: processed frame
-    :rtype: np.array
-    """
-    img = cv2.erode(img, np.ones((3, 3)))
-    img = cv2.dilate(img, np.ones((3, 3)))
-    mask = img
-    skel = skeletonize(img, method='lee') > 0
-    return skel, mask
-
-
 def get_spline_image(spline_coords, shape):
     """
     Get an array with (x, y) coordinates set in.
@@ -54,40 +39,66 @@ def get_spline_image(spline_coords, shape):
 
     u = spline_coords[..., 0].astype(int)
     v = spline_coords[..., 1].astype(int)
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            img_spline[u + i, v + j] = 1
+    # for i in range(-1, 2):
+    #    for j in range(-1, 2):
+    #        img_spline[u + i, v + j] = 1
+    img_spline[u, v] = 1
 
     return img_spline
 
 
-def remove_if_more_than_3_neighbours(img):
+def process_image(img):
     """
-    Remove from image pixels with more than 2 neighbours.
-    :param img: image
+    Common function for processing the mask. It:
+    * finds a sub-image containing mask
+    * skeletonizes it
+    * removes pixels with more than 3 neighbours
+    * finds ends of the DLO
+    :param img: mask image
     :type img: np.array
-    :return: image with pixels with at most 2 neighbours
+    :return: (skeletonized image, indexes of the pixels which are considered to be DLO ends)
+    :rtype: (np.array, list)
+    """
+    # find a sub-image containing mask
+    x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
+    # skeletonize
+    skel = skeletonize(img[y:y + h, x:x + w], method='lee') / 255.  # > 0
+    # remove more than 3 neighbours
+    kernel = np.ones((3, 3), dtype=np.float32)
+    less_than_3 = cv2.filter2D(skel, -1, kernel / 3) <= 1. + 1e-6
+    skel = skel * less_than_3.astype(np.float32)
+
+    # find ends
+    less_than_3 = cv2.filter2D(skel, -1, kernel / 2) <= 1
+    r = skel * less_than_3.astype(np.float32)
+    idx = np.where(r > 0)
+    idx = [[idx[1][i] + x, idx[0][i] + y] for i in range(len(idx[0]))]
+
+    img = np.zeros_like(img)
+    img[y:y + h, x:x + w] = skel
+    return img, idx
+
+
+def preprocess_image(img, masked):
+    """
+    Common function for preprocessing the image. It:
+    * finds mask if needed
+    * perform morphological open to filter out the noise
+    :param img: image or mask
+    :type img: np.array
+    :param masked: info whether the mask is needed
+    :type masked: bool
+    :return: masked and filtered image
     :rtype: np.array
     """
-    kernel = np.ones((3, 3), dtype=np.float32) / 3
-    img = img.astype(np.float32)
-    less_than_3 = cv2.filter2D(img, -1, kernel) <= 1
-    r = img * less_than_3.astype(np.float32)
-    return r.astype(np.bool)
+    img = img if masked else set_mask(img)
+    x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
+    img_part = img[y:y + h, x:x + w]
+    img_part = cv2.erode(img_part, np.ones((3, 3)))
+    img_part = cv2.dilate(img_part, np.ones((3, 3)))
+    img = np.zeros_like(img)
+    img[y:y + h, x:x + w] = img_part
 
-
-def find_ends(img):
-    """
-    Find ends of the DLO
-    :param img: image
-    :type img: np.array
-    :return: indexes of the pixels which are considered to be DLO ends
-    :rtype: list
-    """
-    kernel = np.ones((3, 3), dtype=np.float32) / 2
-    img = img.astype(np.float32)
-    less_than_3 = cv2.filter2D(img, -1, kernel) <= 1
-    r = img * less_than_3.astype(np.float32)
-    idx = np.where(r > 0)
-    idx = [[idx[1][i], idx[0][i]] for i in range(len(idx[0]))]
-    return idx
+    #img = cv2.erode(img, np.ones((3, 3)))
+    #img = cv2.dilate(img, np.ones((3, 3)))
+    return img

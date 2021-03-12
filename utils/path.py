@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import LSQUnivariateSpline
+import matplotlib.pyplot as plt
 
 
 class Path:
@@ -11,8 +12,8 @@ class Path:
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
-        #self.T = np.linspace(0., 1., 128)
-        self.T = np.linspace(0., 1., 4096)
+        self.T = np.linspace(0., 1., 128)
+        #self.T = np.linspace(0., 1., 4096)
         self.k = 35
         self.max_width = 40
         self.width_step = 4.

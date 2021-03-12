@@ -71,7 +71,8 @@ def walk_faster(skel, start):
     :rtype: np.array, float
     """
     path = [(int(start[1]) + 1, int(start[0]) + 1)]
-    while True:
+    end = False
+    while not end:
         end = True
         act = path[-1]
         skel[act[0], act[1]] = 0.
@@ -82,8 +83,6 @@ def walk_faster(skel, start):
                 path.append((aim_x, aim_y))
                 end = False
                 break
-        if end:
-            break
 
     path = np.array(path)
     length = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
