@@ -17,11 +17,13 @@ class Path:
         self.k = 35
         self.max_width = 40
         self.width_step = 4.
-        if self.length > 10:
-            bv = self.coordinates[0] - self.coordinates[5]
-            ev = self.coordinates[-1] - self.coordinates[-6]
-            self.begin_direction = np.arctan2(bv[0], bv[1])
-            self.end_direction = np.arctan2(ev[0], ev[1])
+        if self.num_points > 10:
+            #bv = self.coordinates[0] - self.coordinates[5]
+            #ev = self.coordinates[-1] - self.coordinates[-6]
+            bv = self.coordinates[0] - self.coordinates[9]
+            ev = self.coordinates[-1] - self.coordinates[-10]
+            self.begin_direction = np.arctan2(bv[1], bv[0])
+            self.end_direction = np.arctan2(ev[1], ev[0])
 
     def __call__(self):
         return self.coordinates

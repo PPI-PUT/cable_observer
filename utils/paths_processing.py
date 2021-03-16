@@ -140,6 +140,7 @@ def sort_paths(paths):
     """
     # calculate dists between all endings
     m = 0.05
+    #m = 0.1
     MAX = 1e10
     l = len(paths)
     begins = np.array([p.begin for p in paths])
@@ -147,14 +148,16 @@ def sort_paths(paths):
     begin_directions = np.array([p.begin_direction for p in paths])
     end_directions = np.array([p.end_direction for p in paths])
     be = np.concatenate([begins, ends], axis=0)
-    dists = np.linalg.norm(be[np.newaxis] - be[:, np.newaxis], axis=-1)
+    dists_gaps = np.linalg.norm(be[np.newaxis] - be[:, np.newaxis], axis=-1)
     be_dirs = np.concatenate([begin_directions, end_directions], axis=0)
     dists_dirs = np.abs(np.pi - np.abs(be_dirs[np.newaxis] - be_dirs[:, np.newaxis]))
+    dists_curv = dists_dirs / (dists_gaps / 100 + 1e-10)
 
-    dists = m * dists + (1 - m) * dists_dirs
+    dists = m * dists_gaps + (1 - m) * dists_dirs
 
     dists[np.arange(2 * l), (np.arange(2 * l) + l) % (2 * l)] = MAX
     dists[np.arange(2 * l), np.arange(2 * l)] = MAX
+    dists[dists > 2.0] = MAX
 
     # greadily choose connections
     conn = []
@@ -167,32 +170,49 @@ def sort_paths(paths):
         dists[:, my] = MAX
         dists[my] = MAX
         dists[:, mx] = MAX
-        if (dists == MAX).all():
-            break
         conn.append([mx % l, my % l])
         skips[mx] = my
         skips[my] = mx
+        if (dists == MAX).all():
+            break
 
     # find starting index
     z = np.array(conn)
     unique, counts = np.unique(z, return_counts=True)
-    start_id = 0
-    for k in range(len(counts)):
-        if counts[k] == 1:
-            start_id = k
-            break
+    starting_points = [unique[i] for i in range(len(unique)) if counts[i] == 1]
+
+    resultant_paths = []
+    used_path_indices = []
+    while starting_points:
+        act_id = starting_points[0] if starting_points[0] in skips else starting_points[0] + l
+        rp = []
+        while True:
+            if act_id % l in starting_points:
+                starting_points.remove(act_id % l)
+            p = paths[act_id % l]
+            used_path_indices.append(act_id % l)
+            if act_id < l:
+                p.flip_path()
+            rp.append(p)
+            if act_id not in skips:
+                break
+            act_id = skips[act_id]
+            act_id = act_id + l if act_id < l else act_id - l
+        resultant_paths.append(rp)
+    for i in range(len(paths)):
+        if i not in used_path_indices:
+            resultant_paths.append([paths[i]])
 
     # traverse and build path
-    resultant_paths = []
-    act_id = start_id if start_id in skips else start_id + l
-    while True:
-        p = paths[act_id % l]
-        if act_id < l:
-            p.flip_path()
-        resultant_paths.append(p)
-        if act_id not in skips:
-            break
-        act_id = skips[act_id]
-        act_id = act_id + l if act_id < l else act_id - l
+    #act_id = start_id if start_id in skips else start_id + l
+    #while True:
+    #    p = paths[act_id % l]
+    #    if act_id < l:
+    #        p.flip_path()
+    #    resultant_paths.append(p)
+    #    if act_id not in skips:
+    #        break
+    #    act_id = skips[act_id]
+    #    act_id = act_id + l if act_id < l else act_id - l
 
     return resultant_paths
