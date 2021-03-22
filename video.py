@@ -6,12 +6,12 @@ from utils.image_processing import get_spline_image
 from utils.tracking import track
 
 if __name__ == "__main__":
-    #cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(2)
     #cap = cv2.VideoCapture("videos/output.avi")
     #cap = cv2.VideoCapture("videos/output_v4_short.avi")
-    cap = cv2.VideoCapture("videos/output_v4.avi")
-    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    #cap = cv2.VideoCapture("videos/output_v4.avi")
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 
     # Skip blank frames
     for i in range(100):
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     poc = []
     ious = []
     last_spline_coords = None
-    debug = False
+    debug = True
     while True:
         _, frame = cap.read()
         frame = cv2.resize(frame, (1280, 960))
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 t = (i - d) / N
                 coords = lower_bound * t + upper_bound * (1 - t)
                 uv = np.around(coords).astype(np.int32)
-                pred[uv[:, 0], uv[:, 1]] = 255
+                pred[np.clip(uv[:, 0], 0, pred.shape[0] - 1), np.clip(uv[:, 1], 0, pred.shape[1] - 1)] = 255
 
             pred = cv2.dilate(pred, np.ones((3, 3)))
             pred = cv2.erode(pred, np.ones((3, 3)))

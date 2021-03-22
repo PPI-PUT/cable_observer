@@ -3,6 +3,7 @@ from time import time
 import cv2
 import numpy as np
 from skimage.morphology import skeletonize
+import matplotlib.pyplot as plt
 
 
 def set_mask(frame):
@@ -16,7 +17,12 @@ def set_mask(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     o = np.ones_like(hsv)[..., 0].astype(np.float32)
     z = np.zeros_like(o)
-    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 175.), hsv[..., 1] > 130), o, z)
+    #plt.imshow(hsv)
+    #plt.show()
+    #img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 175.), hsv[..., 1] > 130), o, z)
+    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 170.), hsv[..., 1] > 130), o, z)
+    #plt.imshow(img)
+    #plt.show()
     return img
 
 
@@ -41,9 +47,9 @@ def get_spline_image(spline_coords, shape):
 
     u = spline_coords[..., 0].astype(int)
     v = spline_coords[..., 1].astype(int)
-    # for i in range(-1, 2):
-    #    for j in range(-1, 2):
-    #        img_spline[u + i, v + j] = 1
+    for i in range(-1, 2):
+       for j in range(-1, 2):
+           img_spline[u + i, v + j] = 1
     img_spline[u, v] = 1
 
     return img_spline
