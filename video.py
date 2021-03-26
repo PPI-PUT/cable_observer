@@ -21,7 +21,7 @@ if __name__ == "__main__":
     poc = []
     ious = []
     last_spline_coords = None
-    debug = False
+    debug = True
     while True:
         _, frame = cap.read()
         frame = cv2.resize(frame, (1280, 960))
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 t = (i - d) / N
                 coords = lower_bound * t + upper_bound * (1 - t)
                 uv = np.around(coords).astype(np.int32)
-                pred[uv[:, 0], uv[:, 1]] = 255
+                pred[np.clip(uv[:, 0], 0, pred.shape[0] - 1), np.clip(uv[:, 1], 0, pred.shape[1] - 1)] = 255
 
             pred = cv2.dilate(pred, np.ones((3, 3)))
             pred = cv2.erode(pred, np.ones((3, 3)))
@@ -67,7 +67,10 @@ if __name__ == "__main__":
             img_spline = np.stack([img_low[:, :, 0], img_spline[:, :, 1], img_up[:, :, 2]], axis=-1)
 
             idx = np.where(np.any(img_spline, axis=-1))
-            frame[idx[0], idx[1]] = (255*img_spline[idx[0], idx[1]]).astype(np.uint8)
+            for i in range(-2, 3):
+                for j in range(-2, 3):
+                    frame[idx[0] + i, idx[1] + j] = (255*img_spline[idx[0], idx[1]]).astype(np.uint8)
+            #frame[idx[0], idx[1]] = (255*img_spline[idx[0], idx[1]]).astype(np.uint8)
 
             z = np.zeros_like(mask)
             mask = np.stack([mask, z, z], axis=-1)
