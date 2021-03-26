@@ -114,7 +114,7 @@ class Path:
         y_normal_seq = np.around(y[:, np.newaxis] +
                                  self.max_width / self.width_step * normal_emp[:, -1:]
                                  * (np.linspace(-1., 1., 2 * self.max_width)[np.newaxis])).astype(np.int32)
-        r = mask[x_normal_seq, y_normal_seq]
+        r = mask[np.clip(x_normal_seq, 0, mask.shape[0] - 1), np.clip(y_normal_seq, 0, mask.shape[1] - 1)]
         width = np.sum(r, axis=-1) / self.width_step
         if common_width:
             mean_width = np.median(width)
