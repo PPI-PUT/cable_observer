@@ -9,17 +9,20 @@ from time import time
 
 
 def track(frame, lsc, masked=False):
-    t0 = time()
+    t1 = time()
     # Preprocess image
     mask = preprocess_image(frame, masked)
     # Get image skeleton
-    t1 = time()
+    #t1 = time()
     img, paths_ends = process_image(mask)
     t2 = time()
 
     # Create paths
     paths = []
-    skel = np.pad(img, [[1, 1], [1, 1]], 'constant', constant_values=False)
+    #skel = np.pad(img, [[1, 1], [1, 1]], 'constant', constant_values=False)
+    skel = np.zeros((img.shape[0] + 2, img.shape[1] + 2), dtype=np.bool)
+    skel[1:-1, 1:-1] = img
+    #skel = img
     while len(paths_ends) > 0:
         coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
         paths.append(Path(coordinates=coordinates, length=length))
@@ -50,7 +53,6 @@ def track(frame, lsc, masked=False):
     merged_path = Path(coordinates=merged_paths, length=full_length)
     spline_coords = merged_path.get_spline(t=t)
     spline_params = merged_path.get_spline_params()
-    t5 = time()
 
     # get bounds of a DLO
     if lsc is not None:
@@ -59,7 +61,8 @@ def track(frame, lsc, masked=False):
         if dist2 < dist1:
             spline_coords = spline_coords[::-1]
             spline_params['coeffs'] = spline_params['coeffs'][:, ::-1]
+    t5 = time()
     #lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=False)
     lower_bound, upper_bound = merged_path.get_bounds(mask, spline_coords, common_width=True)
 
-    return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound, [t0, t1, t2, t3, t4, t5]
+    return spline_coords, spline_params, img.astype(np.float64) * 255, mask, lower_bound, upper_bound, [t1, t2, t3, t4, t5]

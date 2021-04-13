@@ -14,12 +14,17 @@ def remove_close_points(last_point, path_ends, max_px_gap=10):
     :return: points without close points to the last point
     :rtype: np.array
     """
-    keys_to_remove = []
-    for key, value in enumerate(np.array(path_ends)):
-        if (np.fabs(np.array(last_point) - value) < max_px_gap).all():
-            keys_to_remove.append(key)
-    path_ends = np.delete(np.array(path_ends), keys_to_remove, axis=0)
-    return path_ends.tolist()
+    try:
+        path_ends.remove(list(last_point))
+    except ValueError:
+        pass
+    return path_ends
+    #keys_to_remove = []
+    #for key, value in enumerate(np.array(path_ends)):
+    #   if (np.fabs(np.array(last_point) - value) < max_px_gap).all():
+    #       keys_to_remove.append(key)
+    #path_ends = np.delete(np.array(path_ends), keys_to_remove, axis=0)
+    #return path_ends.tolist()
 
 
 dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
@@ -71,6 +76,7 @@ def walk_faster(skel, start):
     :rtype: np.array, float
     """
     path = [(int(start[1]) + 1, int(start[0]) + 1)]
+    #path = [(int(start[1]), int(start[0]))]
     end = False
     while not end:
         end = True
@@ -78,6 +84,7 @@ def walk_faster(skel, start):
         skel[act[0], act[1]] = 0.
         for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
             if skel[act[0] + dx, act[1] + dy]:
+            #if 0 <= act[0] + dx < skel.shape[0] and 0 <= act[1] + dy < skel.shape[1] and skel[act[0] + dx, act[1] + dy]:
                 aim_x = act[0] + dx
                 aim_y = act[1] + dy
                 path.append((aim_x, aim_y))
