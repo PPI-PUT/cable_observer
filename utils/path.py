@@ -14,7 +14,9 @@ class Path:
         self.end = self.coordinates[-1]
         self.T = np.linspace(0., 1., 128)
         #self.T = np.linspace(0., 1., 4096)
-        self.k = 35
+        #self.k = 35
+        #self.k = 25
+        self.k = 25
         self.max_width = 40
         self.width_step = 4.
         if self.length > 10:

@@ -24,7 +24,7 @@ if __name__ == "__main__":
     debug = True
     while True:
         _, frame = cap.read()
-        frame = cv2.resize(frame, (1280, 960))
+        #frame = cv2.resize(frame, (1280, 960))
 
         t0 = time()
         # Get spline coordinates
