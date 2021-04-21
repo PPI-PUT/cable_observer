@@ -24,7 +24,7 @@ Presented method is able to run in real-time.
   ./cable_observer.py --path /path/to/video_file --debug
   ```
 
-###Option 2: Using ROS
+### Option 2: Using ROS
 * Clone repository into src directory in the ROS workspace
   ```
   git clone https://github.com/pkicki/cable_observer
