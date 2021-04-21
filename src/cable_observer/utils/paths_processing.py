@@ -1,6 +1,4 @@
 import numpy as np
-from copy import deepcopy
-
 
 def remove_close_points(last_point, path_ends, max_px_gap=10):
     """

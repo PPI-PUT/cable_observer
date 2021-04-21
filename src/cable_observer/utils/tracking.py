@@ -1,9 +1,7 @@
-import cv2
-
-from utils.image_processing import set_mask, process_image, preprocess_image
-from utils.paths_processing import walk_fast, remove_close_points, get_gaps_length, get_linespaces, sort_paths, \
+from .image_processing import set_mask, process_image, preprocess_image
+from .paths_processing import walk_fast, remove_close_points, get_gaps_length, get_linespaces, sort_paths, \
     walk_faster
-from utils.path import Path
+from .path import Path
 import numpy as np
 from time import time
 

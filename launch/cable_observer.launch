@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Specify your own video file path and debug mode -->
+    <arg name="debug" default="false"/>
+    <arg name="path" default="$(find cable_observer)/videos/output_v4.avi"/>
+    <arg name="camera" default="false"/>
+    <arg name="input" default="-1"/>
+
+    <param name="/debug" value="$(arg debug)" type="bool"/>
+    <param name="/path" value="$(arg path)" type="str"/>
+    <param name="/camera" value="$(arg camera)" type="bool"/>
+    <param name="/input" value="$(arg input)" type="int"/>
+
+    <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" />
+
+    <group unless="$(arg debug)">
+        <node name="view_camera_image_raw" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/camera/image_raw" />
+        </node>
+        <node name="view_camera_image_spline" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/camera/image_spline" />
+        </node>
+    </group>
+
+    <group if="$(arg debug)">
+        <node name="view_debug_image_merged" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/debug/image_merged" />
+        </node>
+        <node name="view_debug_image_spline" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/debug/image_spline" />
+        </node>
+        <node name="view_debug_image_prediction" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/debug/image_prediction" />
+        </node>
+        <node name="view_debug_image_mask" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/debug/image_mask" />
+        </node>
+        <node name="view_debug_image_skeleton" pkg="image_view" type="image_view" output="screen" >
+            <remap from="image" to="/debug/image_skeleton" />
+        </node>
+    </group>
+
+</launch>
