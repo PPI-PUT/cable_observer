@@ -10,7 +10,7 @@ catkin_python_setup()
 
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES wire_manipulations
+#  LIBRARIES cable_observer
    CATKIN_DEPENDS
 )
 
