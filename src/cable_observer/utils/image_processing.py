@@ -69,11 +69,12 @@ def process_image(img):
     # remove more than 3 neighbours
     kernel = np.ones((3, 3), dtype=np.float32)
     less_than_3 = cv2.filter2D(skel, -1, kernel / 3) <= 1. + 1e-6
+    #less_than_3 = cv2.filter2D(skel, -1, kernel / 3, borderType=cv2.BORDER_ISOLATED) <= 1.# + 1e-6
     skel = skel * less_than_3.astype(np.float32)
     #t3 = time()
 
     # find ends
-    less_than_3 = cv2.filter2D(skel, -1, kernel / 2) <= 1
+    less_than_3 = cv2.filter2D(skel, -1, kernel / 2, borderType=cv2.BORDER_ISOLATED) <= 1
     r = skel * less_than_3.astype(np.float32)
     idx = np.where(r > 0)
     idx = [[idx[1][i] + x, idx[0][i] + y] for i in range(len(idx[0]))]
