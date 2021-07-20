@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import LSQUnivariateSpline
 
 
+import matplotlib.pyplot as plt
 class Path:
     def __init__(self, coordinates, length):
         self.coordinates = np.array(coordinates).reshape((-1, 2))
@@ -11,7 +12,8 @@ class Path:
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
-        self.T = np.linspace(0., 1., 128)
+        #self.T = np.linspace(0., 1., 128)
+        self.T = np.linspace(0., 1., 256)
         #self.T = np.linspace(0., 1., 4096)
         #self.k = 35
         #self.k = 25
@@ -35,10 +37,13 @@ class Path:
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
 
-    def get_spline(self, t):
+    def get_spline(self, t, between_grippers=False):
         """
         Get spline coordinates.
         :param t: path linspace
+        :param between_grippers: boolean which decides if take care only about the cable
+                                 between horizontally oriented grippers
+                                 (extracts the part of a cable between extreme spline extrema)
         :type t: np.array
         :return: x coordinates, y coordinates, x spline, y spline
         :rtype: np.array, np.array, np.array, np.array
@@ -50,6 +55,24 @@ class Path:
         self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
         self.y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
         spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T)))
+
+        # quickfix to ignore part of the cable which is not between the grippers
+        if between_grippers:
+            xs = self.x_spline(self.T)
+            ys = self.y_spline(self.T)
+            dx = xs[1:] - xs[:-1]
+            dy = ys[1:] - ys[:-1]
+            ratio = dx / dy
+            rm = np.abs(ratio) < 0.1
+            idxs = np.where(rm)[0]
+            xs = xs[idxs[0]:idxs[-1]]
+            ys = ys[idxs[0]:idxs[-1]]
+            t = np.linspace(0., 1., idxs[-1] - idxs[0])
+            d = int((t.shape[0] - 2) / k) + 1
+            knots = t[1:-1:d]
+            self.x_spline = LSQUnivariateSpline(t, xs, knots)
+            self.y_spline = LSQUnivariateSpline(t, ys, knots)
+            spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T)))
         return spline_coords
 
     def get_spline_params(self):
@@ -58,18 +81,13 @@ class Path:
             * length - full length of spline including gaps
             * coeffs - spline coefficients [x, y]
             * residuals - spline residuals [x, y]
-            * derivatives - spline derivatives [x, y]
         :return: spline params
         :rtype: dict
         """
         coeffs = np.array([self.x_spline.get_coeffs(), self.y_spline.get_coeffs()])
         residuals = np.array([self.x_spline.get_residual(), self.y_spline.get_residual()])
-        cps = np.linspace(0, 1, 7)
 
-        derivatives = np.array([[self.x_spline.derivatives([d]) for d in cps[1:-1]],
-                                [self.y_spline.derivatives([d]) for d in cps[1:-1]]])
-
-        return {"length": self.length, "coeffs": coeffs, "residuals": residuals, "derivatives": derivatives}
+        return {"length": self.length, "coeffs": coeffs, "residuals": residuals}
 
     def get_key(self, buffer):
         """

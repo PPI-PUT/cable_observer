@@ -20,7 +20,6 @@ if __name__ == "__main__":
     last_spline_coords = None
     for path in sorted(glob("/home/piotr/Downloads/vel_1.0_acc_1.0/wire/*.png")):
         print(path)
-    #for path in glob("./ds/extracted_wire/wire*"):
         frame = cv2.imread(path)
         frame = (np.sum(frame, axis=-1) > 0).astype(np.float32)
         spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame, last_spline_coords, True)

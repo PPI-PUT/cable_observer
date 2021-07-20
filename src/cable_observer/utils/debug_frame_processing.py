@@ -66,7 +66,8 @@ class DebugFrameProcessing:
         img_frame = self._frame
         for i in range(-2, 3):
             for j in range(-2, 3):
-                img_frame[self._idx[0] + i, self._idx[1] + j] = self._img_spline[self._idx[0], self._idx[1]]
+                img_frame[np.clip(self._idx[0] + i, 0, img_frame.shape[0] - 1),
+                          np.clip(self._idx[1] + j, 0, img_frame.shape[1] - 1)] = self._img_spline[self._idx[0], self._idx[1]]
         # frame[idx[0], idx[1]] = (255*img_spline_raw[idx[0], idx[1]]).astype(np.uint8)
         self._img_frame = img_frame
 
