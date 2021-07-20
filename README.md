@@ -48,6 +48,7 @@ Presented method is able to run in real-time.
   * `path` - path to video file
   * `debug` - run debug mode, default false
   * `camera` - set camera as video input, default false
+  * `between` - track cable between the horizontally oriented grippers, default false
   * `input` - specify camera number (corresponding to /dev/videoX)
 
 ![Screenshot](example.png)
