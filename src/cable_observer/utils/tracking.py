@@ -6,7 +6,7 @@ import numpy as np
 from time import time
 
 
-def track(frame, lsc, masked=False):
+def track(frame, lsc, masked=False, between_grippers=False):
     t1 = time()
     # Preprocess image
     mask = preprocess_image(frame, masked)
@@ -49,7 +49,7 @@ def track(frame, lsc, masked=False):
     # Get spline representation for a merged path
     full_length = np.sum([p.length for p in paths]) + np.sum(gaps_length)
     merged_path = Path(coordinates=merged_paths, length=full_length)
-    spline_coords = merged_path.get_spline(t=t)
+    spline_coords = merged_path.get_spline(t=t, between_grippers=between_grippers)
     spline_params = merged_path.get_spline_params()
 
     # get bounds of a DLO

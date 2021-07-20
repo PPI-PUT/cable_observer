@@ -10,6 +10,9 @@ parser.add_argument('-d', '--debug', default=False, action='store_true', help="D
 parser.add_argument('-c', '--camera', default=False, action='store_true', help="Use camera input")
 parser.add_argument('-i', '--input', type=int, default="-1", help='Camera input number')
 parser.add_argument('-p', '--path', type=str, default="./videos/output_v4.avi", help='Video file path')
+parser.add_argument('-b', '--between', default=False, action='store_true', help='Set to true if you want to receive a '
+                                                                                'spline between horizontally oriented'
+                                                                                ' grippers')
 args = parser.parse_args()
 
 
@@ -30,7 +33,8 @@ if __name__ == "__main__":
 
     while True:
         _, frame = cap.read()
-        spline_coords, spline_params, skeleton, mask,  lower_bound, upper_bound, t = track(frame, last_spline_coords)
+        spline_coords, spline_params, skeleton, mask,  lower_bound, upper_bound, t = track(frame, last_spline_coords,
+                                                                                           between_grippers=args.between)
         if args.debug:
             dfp = DebugFrameProcessing(frame, cps, poc, last_spline_coords,
                                       spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t)

@@ -14,6 +14,7 @@ class CableObserver:
     def __init__(self):
         self.debug = rospy.get_param("/debug")
         self.path = rospy.get_param("/path")
+        self.between = rospy.get_param("/between")
         self.camera = rospy.get_param("/camera")
         self.input = rospy.get_param("/input")
         self.bridge = CvBridge()
@@ -82,7 +83,8 @@ class CableObserver:
 
         self.img_to_msg(img=frame, publisher=self.image_raw_pub)
 
-        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame, self.last_spline_coords)
+        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame, self.last_spline_coords,
+                                                                                          between_grippers=self.between)
         spline_img = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
         self.img_to_msg(img=np.uint8(spline_img*255), publisher=self.image_spline_pub)
 
