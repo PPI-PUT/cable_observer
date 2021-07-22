@@ -23,9 +23,8 @@ if __name__ == "__main__":
         cap = cv2.VideoCapture(args.path)
 
     # Debug params
-    cps = []
-    poc = []
     last_spline_coords = None
+    dfp = DebugFrameProcessing()
 
     # Skip blank frames
     for i in range(100):
@@ -36,9 +35,9 @@ if __name__ == "__main__":
         spline_coords, spline_params, skeleton, mask,  lower_bound, upper_bound, t = track(frame, last_spline_coords,
                                                                                            between_grippers=args.between)
         if args.debug:
-            dfp = DebugFrameProcessing(frame, cps, poc, last_spline_coords,
-                                      spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t)
-            cps, poc, last_spline_coords = dfp.get_params()
+            dfp.set_debug_state(frame, last_spline_coords, spline_coords, spline_params, skeleton, mask, lower_bound,
+                                upper_bound, t)
+            dfp.run_debug_sequence()
             dfp.print_t()
             cv2.imshow('frame', dfp.img_frame)
             cv2.imshow('mask', dfp.img_mask)

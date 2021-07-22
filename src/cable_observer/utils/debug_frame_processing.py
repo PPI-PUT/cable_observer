@@ -15,11 +15,25 @@ def time_counter(method):
 
 
 class DebugFrameProcessing:
-    def __init__(self, frame, cps, poc, last_spline_coords,
-                 spline_coords, spline_params, skeleton, mask,  lower_bound, upper_bound, t):
-        self._frame = frame
-        self._cps = cps
-        self._poc = poc
+    def __init__(self):
+        self._cps = []
+        self._poc = []
+        self._frame = None
+        self._last_spline_coords = None
+        self._spline_coords = None
+        self._spline_params = None
+        self._skeleton = None
+        self._mask = None
+        self._lower_bound = None
+        self._upper_bound = None
+        self._t = None
+        self._idx = None
+        self._img_pred = self._img_mask = self._img_frame = self._img_skeleton = self._img_spline = None
+        self._img_spline_raw = None
+
+    def set_debug_state(self, frame, last_spline_coords, spline_coords, spline_params, skeleton, mask, lower_bound,
+                        upper_bound, t):
+        self._frame = frame if len(frame.shape) == 3 else np.tile(frame[..., np.newaxis], (1, 1, 3))
         self._last_spline_coords = last_spline_coords
         self._spline_coords = spline_coords
         self._spline_params = spline_params
@@ -28,12 +42,7 @@ class DebugFrameProcessing:
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
         self._t = t
-        self._idx = None
-        self._img_pred = self._img_mask = self._img_frame = self._img_skeleton = self._img_spline = None
         self._img_spline_raw = get_spline_image(spline_coords=self._spline_coords, shape=frame.shape)
-
-        # Run debug
-        self.run_debug_sequence()
 
     def coords_to_img(self, coords):
         z = np.zeros_like(coords)

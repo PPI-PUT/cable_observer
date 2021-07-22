@@ -4,7 +4,7 @@ from scipy.interpolate import LSQUnivariateSpline
 
 import matplotlib.pyplot as plt
 class Path:
-    def __init__(self, coordinates, length):
+    def __init__(self, coordinates, length, num_of_knots=25, num_of_pts=256):
         self.coordinates = np.array(coordinates).reshape((-1, 2))
         self.length = length
         self.x_spline = None
@@ -12,12 +12,8 @@ class Path:
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
-        #self.T = np.linspace(0., 1., 128)
-        self.T = np.linspace(0., 1., 256)
-        #self.T = np.linspace(0., 1., 4096)
-        #self.k = 35
-        #self.k = 25
-        self.k = 25
+        self.T = np.linspace(0., 1., num_of_pts)
+        self.k = num_of_knots
         self.max_width = 40
         self.width_step = 4.
         if self.length > 10:

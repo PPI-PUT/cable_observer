@@ -8,9 +8,8 @@ from src.cable_observer.utils.image_processing import get_spline_image
 
 if __name__ == "__main__":
     # Debug params
-    cps = []
-    poc = []
     last_spline_coords = None
+    dfp = DebugFrameProcessing()
     #for path in ["./ds/extracted_wire/wire_000013.png"]:
     #for path in ["./wire_000013.png"]:
     for path in ["/home/piotr/Downloads/vel_1.0_acc_1.0/wire/000001.png"]:
@@ -18,9 +17,9 @@ if __name__ == "__main__":
         mask = (np.sum(frame, axis=-1) > 0).astype(np.float32)
         spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(mask, last_spline_coords, True)
 
-        dfp = DebugFrameProcessing(frame, cps, poc, last_spline_coords,
-                                  spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t)
-        cps, poc, last_spline_coords = dfp.get_params()
+        dfp.set_debug_state(frame, last_spline_coords, spline_coords, spline_params, skeleton, mask, lower_bound,
+                            upper_bound, t)
+        dfp.run_debug_sequence()
         dfp.print_t()
         dbg = "imgs/debug/"
         cv2.imwrite(dbg + 'frame.png', dfp.img_frame)

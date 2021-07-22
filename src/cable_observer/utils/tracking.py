@@ -6,7 +6,7 @@ import numpy as np
 from time import time
 
 
-def track(frame, lsc, masked=False, between_grippers=False):
+def track(frame, lsc, masked=False, between_grippers=False, num_of_knots=25, num_of_pts=256):
     t1 = time()
     # Preprocess image
     mask = preprocess_image(frame, masked)
@@ -23,7 +23,7 @@ def track(frame, lsc, masked=False, between_grippers=False):
     #skel = img
     while len(paths_ends) > 0:
         coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
-        paths.append(Path(coordinates=coordinates, length=length))
+        paths.append(Path(coordinates=coordinates, length=length, num_of_knots=num_of_knots, num_of_pts=num_of_pts))
         paths_ends.pop(0)
         paths_ends = remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends, max_px_gap=1)
     t3 = time()
