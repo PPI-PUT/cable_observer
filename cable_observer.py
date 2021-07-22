@@ -10,6 +10,8 @@ parser.add_argument('-d', '--debug', default=False, action='store_true', help="D
 parser.add_argument('-c', '--camera', default=False, action='store_true', help="Use camera input")
 parser.add_argument('-i', '--input', type=int, default="-1", help='Camera input number')
 parser.add_argument('-p', '--path', type=str, default="./videos/output_v4.avi", help='Video file path')
+parser.add_argument('--knots', type=int, default=25, help='Number of knots in the estimated spline')
+parser.add_argument('--pts', type=int, default=256, help='Number of points along the estimated spline')
 parser.add_argument('-b', '--between', default=False, action='store_true', help='Set to true if you want to receive a '
                                                                                 'spline between horizontally oriented'
                                                                                 ' grippers')
@@ -33,7 +35,9 @@ if __name__ == "__main__":
     while True:
         _, frame = cap.read()
         spline_coords, spline_params, skeleton, mask,  lower_bound, upper_bound, t = track(frame, last_spline_coords,
-                                                                                           between_grippers=args.between)
+                                                                                           between_grippers=args.between,
+                                                                                           num_of_knots=args.knots,
+                                                                                          num_of_pts=args.pts)
         if args.debug:
             dfp.set_debug_state(frame, last_spline_coords, spline_coords, spline_params, skeleton, mask, lower_bound,
                                 upper_bound, t)

@@ -5,12 +5,16 @@
     <arg name="path" default="$(find cable_observer)/videos/output_v4.avi"/>
     <arg name="camera" default="false"/>
     <arg name="between" default="false"/>
+    <arg name="pts" default="256"/>
+    <arg name="knots" default="25"/>
     <arg name="input" default="-1"/>
 
     <param name="/debug" value="$(arg debug)" type="bool"/>
     <param name="/path" value="$(arg path)" type="str"/>
     <param name="/camera" value="$(arg camera)" type="bool"/>
     <param name="/between" value="$(arg between)" type="bool"/>
+    <param name="/knots" value="$(arg knots)" type="int"/>
+    <param name="/pts" value="$(arg pts)" type="int"/>
     <param name="/input" value="$(arg input)" type="int"/>
 
     <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" />

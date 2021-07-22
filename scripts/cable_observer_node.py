@@ -15,6 +15,8 @@ class CableObserver:
         self.debug = rospy.get_param("/debug")
         self.path = rospy.get_param("/path")
         self.between = rospy.get_param("/between")
+        self.knots = rospy.get_param("/knots")
+        self.pts = rospy.get_param("/pts")
         self.camera = rospy.get_param("/camera")
         self.input = rospy.get_param("/input")
         self.bridge = CvBridge()
@@ -25,8 +27,7 @@ class CableObserver:
         self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.skip_blank_frames()
-        self.poc = []
-        self.cps = []
+        self._dfp = DebugFrameProcessing()
         self.last_spline_coords = None
         self.image_raw_pub = rospy.Publisher("/camera/image_raw", Image, queue_size=1)
         self.image_spline_pub = rospy.Publisher("/camera/image_spline", Image, queue_size=1)
@@ -83,24 +84,27 @@ class CableObserver:
 
         self.img_to_msg(img=frame, publisher=self.image_raw_pub)
 
-        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame, self.last_spline_coords,
-                                                                                          between_grippers=self.between)
+        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame,
+                                                                                          self.last_spline_coords,
+                                                                                          between_grippers=self.between,
+                                                                                          num_of_knots=self.knots,
+                                                                                          num_of_pts=self.pts)
         spline_img = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
-        self.img_to_msg(img=np.uint8(spline_img*255), publisher=self.image_spline_pub)
+        self.img_to_msg(img=np.uint8(spline_img * 255), publisher=self.image_spline_pub)
 
         self.publish_array(arr=spline_params["coeffs"], publisher=self.coeffs_pub)
         self.publish_array(arr=spline_coords.T, publisher=self.coords_pub)
 
         if self.debug:
-            dfp = DebugFrameProcessing(frame, self.cps, self.poc, self.last_spline_coords,
-                                       spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t)
-            self.cps, self.poc, self.last_spline_coords = dfp.get_params()
-            dfp.print_t()
-            self.img_to_msg(img=dfp.img_frame, publisher=self.debug_image_merged_pub)
-            self.img_to_msg(img=dfp.img_spline, publisher=self.debug_image_spline_pub)
-            self.img_to_msg(img=dfp.img_pred, publisher=self.debug_image_prediction_pub)
-            self.img_to_msg(img=dfp.img_mask, publisher=self.debug_image_mask_pub)
-            self.img_to_msg(img=dfp.img_skeleton, publisher=self.debug_image_skeleton_pub)
+            self._dfp.set_debug_state(frame, self.last_spline_coords, spline_coords, spline_params, skeleton, mask,
+                                      lower_bound, upper_bound, t)
+            self._dfp.run_debug_sequence()
+            self._dfp.print_t()
+            self.img_to_msg(img=self._dfp.img_frame, publisher=self.debug_image_merged_pub)
+            self.img_to_msg(img=self._dfp.img_spline, publisher=self.debug_image_spline_pub)
+            self.img_to_msg(img=self._dfp.img_pred, publisher=self.debug_image_prediction_pub)
+            self.img_to_msg(img=self._dfp.img_mask, publisher=self.debug_image_mask_pub)
+            self.img_to_msg(img=self._dfp.img_skeleton, publisher=self.debug_image_skeleton_pub)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             self.__del__(reason="Received \"q\" key")
