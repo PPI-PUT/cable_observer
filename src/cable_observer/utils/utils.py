@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -21,7 +22,6 @@ def create_spline_dir(dir_path):
     :param dir_path: path to directory of image
     :type dir_path: str
     """
-    subdataset_path = dir_path.split("/")[:-1]
-    spline_path = "/".join(subdataset_path + ["spline"])
-    print(spline_path)
+    subdataset_path = os.path.dirname(dir_path.rstrip('/')) # get the parent dir
+    spline_path = os.path.join(subdataset_path, "spline")
     Path(spline_path).mkdir(parents=True, exist_ok=True)
