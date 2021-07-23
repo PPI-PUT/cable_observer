@@ -21,17 +21,13 @@ parser.add_argument('-b', '--between', default=False, action='store_true', help=
                                                                                 ' grippers')
 args = parser.parse_args()
 
-#args.path = "/remodel_ws/src/wire_manipulations_dataset/media/remodel_dataset/wire/0.003/left_diagonal_right_circular/vel_1.0_acc_1.0/wire"
-args.path = "/home/piotr/Downloads/vel_1.0_acc_1.0/wire"
-
-
 if __name__ == "__main__":
     # Debug params
     df = pd.DataFrame()
     last_spline_coords = None
     create_spline_dir(dir_path=args.path)
     dfp = DebugFrameProcessing()
-    for i, path in enumerate(sorted(glob(os.path.join(args.path, "*.png"))[:10])):
+    for i, path in enumerate(sorted(glob(os.path.join(args.path, "*.png")))):
         print(path)
         frame = cv2.imread(path)
         frame = (np.sum(frame, axis=-1) > 0).astype(np.float32)
