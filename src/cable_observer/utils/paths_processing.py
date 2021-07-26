@@ -1,3 +1,5 @@
+from time import time
+
 import numpy as np
 
 
@@ -166,25 +168,113 @@ def sort_paths(paths):
     conn = []
     skips = {}
     stats = {i: 0 for i in range(l)}
-    while True:
+    
+    def find_order_of_paths(conn, skips, stats, dists, loss):
+        """The most straightforward way to obtain the order of paths, which greedily chooses the connection
+        with the smallest distance"""
+        while True:
+            m = np.argmin(dists)
+            mx = m // (2 * l)
+            my = m % (2 * l)
+            m_value = dists[mx][my]
+            dists[mx] = MAX
+            dists[my] = MAX
+            if stats[mx % l] == 1 and stats[my % l] == 1 and np.count_nonzero(np.array(list(stats.values())) == 1) == 2:
+                if (dists == MAX).all():
+                    break
+                continue
+            dists[:, my] = MAX
+            dists[:, mx] = MAX
+            if (dists == MAX).all():
+                break
+            conn.append([mx % l, my % l])
+            skips[mx] = my
+            skips[my] = mx
+            stats[mx % l] += 1
+            stats[my % l] += 1
+            loss += m_value
+        return conn, skips, stats, loss
+
+    def find_order_of_paths_recursively(conn, skips, stats, dists, loss):
+        """The most straightforward way to obtain the order of paths, which greedily chooses the connection
+        with the smallest distance, but does it recursively instead of the infinite while"""
+        conn = list(conn)
+        skips = dict(skips)
+        stats = dict(stats)
+        dists = np.array(dists)
         m = np.argmin(dists)
         mx = m // (2 * l)
         my = m % (2 * l)
+        m_value = dists[mx][my]
         dists[mx] = MAX
         dists[my] = MAX
+        # TODO check if this is working properly!!!
         if stats[mx % l] == 1 and stats[my % l] == 1 and np.count_nonzero(np.array(list(stats.values())) == 1) == 2:
             if (dists == MAX).all():
-                break
-            continue
+                return conn, skips, stats, loss
+            conn, skips, stats, loss = find_order_of_paths_recursively(conn, skips, stats, dists, loss)
         dists[:, my] = MAX
         dists[:, mx] = MAX
         if (dists == MAX).all():
-            break
+            return conn, skips, stats, loss
+        loss += m_value
         conn.append([mx % l, my % l])
         skips[mx] = my
         skips[my] = mx
         stats[mx % l] += 1
         stats[my % l] += 1
+        conn, skips, stats, loss = find_order_of_paths_recursively(conn, skips, stats, dists, loss)
+        return conn, skips, stats, loss
+
+    def find_order_of_paths_two_cases(conn, skips, stats, dists, loss, idx=None):
+        """Sophisticated way to obtain the order of paths, which takes into account not only the best connection
+        but also a second one if it is close to the best"""
+        conn = list(conn)
+        skips = dict(skips)
+        stats = dict(stats)
+        dists = np.array(dists)
+        if idx is None:
+            s = np.argsort(dists, axis=None)
+            ds = dists.flatten()
+            s1 = ds[s[0]]
+            s2 = ds[s[2]]
+            if s2 < s1 * 1.2:
+                conn1, skips1, stats1, loss1 = find_order_of_paths_two_cases(conn, skips, stats, dists, loss, idx=s[0])
+                conn2, skips2, stats2, loss2 = find_order_of_paths_two_cases(conn, skips, stats, dists, loss, idx=s[2])
+                if loss1 < loss2:
+                    return conn1, skips1, stats1, loss1
+                else:
+                    return conn2, skips2, stats2, loss2
+            idx = s[0]
+        m = idx
+        mx = m // (2 * l)
+        my = m % (2 * l)
+        m_value = dists[mx][my]
+        dists[mx] = MAX
+        dists[my] = MAX
+        # TODO check if this is working properly!!!
+        if stats[mx % l] == 1 and stats[my % l] == 1 and np.count_nonzero(np.array(list(stats.values())) == 1) == 2:
+            if (dists == MAX).all():
+                return conn, skips, stats, loss
+            conn, skips, stats, loss = find_order_of_paths_two_cases(conn, skips, stats, dists, loss)
+        dists[:, my] = MAX
+        dists[:, mx] = MAX
+        if (dists == MAX).all():
+            return conn, skips, stats, loss
+        loss += m_value
+        conn.append([mx % l, my % l])
+        skips[mx] = my
+        skips[my] = mx
+        stats[mx % l] += 1
+        stats[my % l] += 1
+        conn, skips, stats, loss = find_order_of_paths_two_cases(conn, skips, stats, dists, loss)
+        return conn, skips, stats, loss
+
+
+    t0 = time()
+    conn, skips, stats, loss = find_order_of_paths_two_cases(conn, skips, stats, dists, 0.)
+    t1 = time()
+    a = t1 - t0
 
     # find starting index
     z = np.array(conn)
