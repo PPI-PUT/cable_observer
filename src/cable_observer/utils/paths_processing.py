@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def remove_close_points(last_point, path_ends, max_px_gap=10):
     """
     Remove close points around certain pixel.
@@ -17,12 +18,12 @@ def remove_close_points(last_point, path_ends, max_px_gap=10):
     except ValueError:
         pass
     return path_ends
-    #keys_to_remove = []
-    #for key, value in enumerate(np.array(path_ends)):
+    # keys_to_remove = []
+    # for key, value in enumerate(np.array(path_ends)):
     #   if (np.fabs(np.array(last_point) - value) < max_px_gap).all():
     #       keys_to_remove.append(key)
-    #path_ends = np.delete(np.array(path_ends), keys_to_remove, axis=0)
-    #return path_ends.tolist()
+    # path_ends = np.delete(np.array(path_ends), keys_to_remove, axis=0)
+    # return path_ends.tolist()
 
 
 dxy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
@@ -74,7 +75,7 @@ def walk_faster(skel, start):
     :rtype: np.array, float
     """
     path = [(int(start[1]) + 1, int(start[0]) + 1)]
-    #path = [(int(start[1]), int(start[0]))]
+    # path = [(int(start[1]), int(start[0]))]
     end = False
     while not end:
         end = True
@@ -82,7 +83,7 @@ def walk_faster(skel, start):
         skel[act[0], act[1]] = 0.
         for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
             if skel[act[0] + dx, act[1] + dy]:
-            #if 0 <= act[0] + dx < skel.shape[0] and 0 <= act[1] + dy < skel.shape[1] and skel[act[0] + dx, act[1] + dy]:
+                # if 0 <= act[0] + dx < skel.shape[0] and 0 <= act[1] + dy < skel.shape[1] and skel[act[0] + dx, act[1] + dy]:
                 aim_x = act[0] + dx
                 aim_y = act[1] + dy
                 path.append((aim_x, aim_y))
@@ -164,19 +165,26 @@ def sort_paths(paths):
     # greadily choose connections
     conn = []
     skips = {}
+    stats = {i: 0 for i in range(l)}
     while True:
         m = np.argmin(dists)
         mx = m // (2 * l)
         my = m % (2 * l)
         dists[mx] = MAX
-        dists[:, my] = MAX
         dists[my] = MAX
+        if stats[mx % l] == 1 and stats[my % l] == 1 and np.count_nonzero(np.array(list(stats.values())) == 1) == 2:
+            if (dists == MAX).all():
+                break
+            continue
+        dists[:, my] = MAX
         dists[:, mx] = MAX
         if (dists == MAX).all():
             break
         conn.append([mx % l, my % l])
         skips[mx] = my
         skips[my] = mx
+        stats[mx % l] += 1
+        stats[my % l] += 1
 
     # find starting index
     z = np.array(conn)
