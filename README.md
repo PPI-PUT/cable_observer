@@ -21,7 +21,7 @@ Presented method is able to run in real-time.
   ```
 * Run `cable_observer.py` for tracking on videos
   ```
-  ./cable_observer.py --path /path/to/video_file --debug
+  ./cable_observer.py --video /path/to/video_file --debug
   ```
 
 ### Option 2: Using ROS
@@ -40,15 +40,19 @@ Presented method is able to run in real-time.
   ```
 * Run `cable_observer.launch` for tracking on videos
   ```
-  roslaunch cable_observer cable_observer.launch path:=/path/to/video_file debug:=true
+  roslaunch cable_observer cable_observer.launch video:=/path/to/video_file debug:=true
   ```
 * You may check provided topics `/spline/coeffs` and `/spline/coords` using `rostopic echo /topic/path`
 
 ### Available arguments:
-  * `path` - path to video file
+  * `camera` - camera mode (default), you may specify camera ID (corresponding to /dev/videoX)
+  * `video` - video mode, you may specify path to video vile
+  * `images` - images mode, you may specify path to directory
   * `debug` - run debug mode, default false
-  * `camera` - set camera as video input, default false
-  * `between` - track cable between the horizontally oriented grippers, default false
-  * `input` - specify camera number (corresponding to /dev/videoX)
+  * `save_dataframe` - save splines metadata, default false
+  * `save_output` - save splines images, default false
+
+### Configuration file
+Check the configuration file `config/params.yaml` to tune the parameters.
 
 ![Screenshot](example.png)

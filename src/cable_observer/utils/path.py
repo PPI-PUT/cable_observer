@@ -4,7 +4,8 @@ from scipy.interpolate import LSQUnivariateSpline
 
 import matplotlib.pyplot as plt
 class Path:
-    def __init__(self, coordinates, length, num_of_knots=25, num_of_pts=256):
+    def __init__(self, coordinates, length, num_of_knots=25, num_of_pts=256, max_width=40, width_step=4,
+                 vector_dir_len=5):
         self.coordinates = np.array(coordinates).reshape((-1, 2))
         self.length = length
         self.x_spline = None
@@ -14,13 +15,12 @@ class Path:
         self.end = self.coordinates[-1]
         self.T = np.linspace(0., 1., num_of_pts)
         self.k = num_of_knots
-        self.max_width = 40
-        self.width_step = 4.
-        if self.length > 10:
-            bv = self.coordinates[0] - self.coordinates[5]
-            ev = self.coordinates[-1] - self.coordinates[-6]
-            self.begin_direction = np.arctan2(bv[0], bv[1])
-            self.end_direction = np.arctan2(ev[0], ev[1])
+        self.max_width = max_width
+        self.width_step = width_step
+        begin_vector = self.coordinates[0] - self.coordinates[min(vector_dir_len, len(self.coordinates) - 1)]
+        end_vector = self.coordinates[-1] - self.coordinates[max(-vector_dir_len - 1, -len(self.coordinates))]
+        self.begin_direction = np.arctan2(begin_vector[0], begin_vector[1])
+        self.end_direction = np.arctan2(end_vector[0], end_vector[1])
 
     def __call__(self):
         return self.coordinates
@@ -37,10 +37,11 @@ class Path:
         """
         Get spline coordinates.
         :param t: path linspace
+        :type t: np.array
         :param between_grippers: boolean which decides if take care only about the cable
                                  between horizontally oriented grippers
                                  (extracts the part of a cable between extreme spline extrema)
-        :type t: np.array
+        :type between_grippers: bool
         :return: x coordinates, y coordinates, x spline, y spline
         :rtype: np.array, np.array, np.array, np.array
         """

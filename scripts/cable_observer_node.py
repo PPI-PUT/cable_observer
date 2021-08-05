@@ -2,6 +2,8 @@
 import rospy
 import cv2
 import numpy as np
+import yaml
+import rospkg
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, MultiArrayDimension
 from cv_bridge import CvBridge, CvBridgeError
@@ -12,18 +14,18 @@ from cable_observer.utils.debug_frame_processing import DebugFrameProcessing
 
 class CableObserver:
     def __init__(self):
-        self.debug = rospy.get_param("/debug")
-        self.path = rospy.get_param("/path")
-        self.between = rospy.get_param("/between")
-        self.knots = rospy.get_param("/knots")
-        self.pts = rospy.get_param("/pts")
         self.camera = rospy.get_param("/camera")
-        self.input = rospy.get_param("/input")
+        self.images = rospy.get_param("/images")
+        self.video = rospy.get_param("/video")
+        self.debug = rospy.get_param("/debug")
+        rospack = rospkg.RosPack()
+        stream = open(rospack.get_path('cable_observer') + "/config/params.yaml", 'r')
+        self.params = yaml.load(stream, Loader=yaml.FullLoader)
         self.bridge = CvBridge()
-        if self.camera:
-            self.cap = cv2.VideoCapture(self.input)
+        if self.video:
+            self.cap = cv2.VideoCapture(self.video)
         else:
-            self.cap = cv2.VideoCapture(self.path)
+            self.cap = cv2.VideoCapture(self.camera)
         self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.skip_blank_frames()
@@ -84,11 +86,9 @@ class CableObserver:
 
         self.img_to_msg(img=frame, publisher=self.image_raw_pub)
 
-        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame,
-                                                                                          self.last_spline_coords,
-                                                                                          between_grippers=self.between,
-                                                                                          num_of_knots=self.knots,
-                                                                                          num_of_pts=self.pts)
+        spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame,
+                                                                                          last_spline_coords=self.last_spline_coords,
+                                                                                          params=self.params)
         spline_img = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
         self.img_to_msg(img=np.uint8(spline_img * 255), publisher=self.image_spline_pub)
 

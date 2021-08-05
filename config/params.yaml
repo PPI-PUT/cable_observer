@@ -1,0 +1,20 @@
+---
+input:
+    color: 1  # 0 for grayscale, 1 for color
+path:
+    num_of_knots: 25
+    num_of_pts: 256
+    max_width: 40
+    width_step: 4
+    vector_dir_len: 5
+    between_grippers: False  # Set to true if you want to receive a spline between horizontally oriented grippers
+hsv:
+    hue:
+        min: 176
+        max: 7
+    saturation:
+        min: 130
+        max: 255
+    value:
+        min: 0
+        max: 255

@@ -1,5 +1,5 @@
 from time import time
-
+from .path import Path
 import numpy as np
 
 
@@ -114,27 +114,27 @@ def get_gaps_length(paths):
     return gaps_length
 
 
-def get_linespaces(paths, gaps_length):
+def get_linspaces(paths, gaps):
     """
-    Get linespace for merged paths.
+    Get linspace for merged paths.
     :param paths: all paths with correct order
     :type paths: list
-    :param gaps_length: all gaps lengths between paths
-    :type gaps_length: list
-    :return: merged linespaces of all paths
+    :param gaps: all gaps lengths between paths
+    :type gaps: list
+    :return: merged linspaces of all paths
     :rtype: np.array
     """
-    full_length = np.sum([d.length for d in paths]) + np.sum(gaps_length)
+    full_length = np.sum([d.length for d in paths]) + np.sum(gaps)
     t_linespaces = []
     curr_value = 0
     for key, value in enumerate([d.length for d in paths]):
-        t_linespace = np.linspace(curr_value, curr_value + value / full_length,
-                                  [d.num_points for d in paths][key])
+        t_linspace = np.linspace(curr_value, curr_value + value / full_length,
+                                 [d.num_points for d in paths][key])
         curr_value += value / full_length
-        if key < len(gaps_length):
-            curr_value += gaps_length[key] / full_length
-        t_linespaces.append(t_linespace)
-    t = np.hstack(t_linespaces)
+        if key < len(gaps):
+            curr_value += gaps[key] / full_length
+        t_linespaces.append(t_linspace)
+    t = np.hstack(t_linespaces) if len(t_linespaces) > 0 else np.arange(0, 1, 0.1)
     return t
 
 
@@ -168,6 +168,7 @@ def sort_paths(paths):
     conn = []
     skips = {}
     stats = {i: 0 for i in range(l)}
+
     
     def find_order_of_paths(conn, skips, stats, dists, loss):
         """The most straightforward way to obtain the order of paths, which greedily chooses the connection
@@ -299,3 +300,98 @@ def sort_paths(paths):
         act_id = act_id + l if act_id < l else act_id - l
 
     return resultant_paths
+
+
+def generate_paths(skeleton, paths_ends, params_path):
+    """
+    Get total length of paths and gaps.
+    :param skeleton: skeleton image
+    :type skeleton: np.array
+    :param paths_ends: ending coordinates of paths
+    :type paths_ends: list
+    :param params_path: path parameters
+    :type params_path: dict
+    :return: all paths
+    :rtype: list
+    """
+    paths = []
+    skel = np.zeros((skeleton.shape[0] + 2, skeleton.shape[1] + 2), dtype=np.bool)
+    skel[1:-1, 1:-1] = skeleton
+    while len(paths_ends) > 0:
+        coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
+        paths.append(Path(coordinates=coordinates, length=length,
+                          num_of_knots=params_path['num_of_knots'],
+                          num_of_pts=params_path['num_of_pts'],
+                          max_width=params_path['max_width'],
+                          width_step=params_path['width_step'],
+                          vector_dir_len=params_path['vector_dir_len']))
+        paths_ends.pop(0)
+    return paths
+
+
+def select_paths(paths, min_points=3, min_length=10):
+    """
+    Get rid of too short paths.
+    :param paths: list of Path objects
+    :type paths: list(Path)
+    :param min_points: minimum points within path
+    :type min_points: int
+    :param min_length: minimum path length
+    :type min_length: int
+    :return: list of Path objects
+    :rtype: list(Path)
+    """
+    paths = [p for p in paths if p.num_points > min_points]
+    paths = [p for p in paths if p.length > min_length]
+    return paths
+
+
+def concatenate_paths(paths):
+    """
+    Concatenate all paths coordinates.
+    :param paths: list of Path objects
+    :type paths: list(Path)
+    :return: list of Path objects
+    :rtype: list(Path)
+    """
+    return np.vstack([p() for p in paths])
+
+
+def inverse_path(path, last_spline_coords, t, between_grippers):
+    """
+    Get total length of paths and gaps.
+    :param path: Path object
+    :type path: Path
+    :param last_spline_coords: spline coordinates from previous frame
+    :type last_spline_coords: list
+    :param t: path linspace
+    :type t: np.array
+    :param between_grippers: boolean which decides if take care only about the cable
+                             between horizontally oriented grippers
+                             (extracts the part of a cable between extreme spline extrema)
+    :type between_grippers: bool
+    :return: spline coordinates, spline parameters
+    :rtype: list, dict
+    """
+    spline_coords = path.get_spline(t=t, between_grippers=between_grippers)
+    spline_params = path.get_spline_params()
+    if last_spline_coords is not None:
+        dist1 = np.sum(np.abs(last_spline_coords[0] - spline_coords[0]) + np.abs(last_spline_coords[-1] - spline_coords[-1]))
+        dist2 = np.sum(np.abs(last_spline_coords[-1] - spline_coords[0]) + np.abs(last_spline_coords[0] - spline_coords[-1]))
+        if dist2 < dist1:
+            spline_coords = spline_coords[::-1]
+            spline_params['coeffs'] = spline_params['coeffs'][:, ::-1]
+    return spline_coords, spline_params
+
+
+def get_paths_and_gaps_length(paths, gaps):
+    """
+    Get total length of paths and gaps.
+    :param paths: list of Path objects
+    :type paths: list(Path)
+    :param gaps: all gaps lengths between paths
+    :type gaps: list
+    :return: path length
+    :rtype: float
+    """
+    return np.sum([p.length for p in paths]) + np.sum(gaps)

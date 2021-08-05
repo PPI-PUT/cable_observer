@@ -3,19 +3,33 @@ import numpy as np
 from skimage.morphology import skeletonize
 
 
-def set_mask(frame):
+def set_mask(frame, hsv_params):
     """
-    Process image to extract cable path.
+    Extract cable using HSV mask.
     :param frame: camera input frame (W x H x 3)
     :type frame: np.array
-    :return: Preprocessed camera frame (W x H)
+    :return: binary mask (W x H)
     :rtype: np.array
     """
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    h = hsv_params['hue']
+    s = hsv_params['saturation']
+    v = hsv_params['value']
     o = np.ones_like(hsv)[..., 0].astype(np.float32)
     z = np.zeros_like(o)
-    img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 175.), hsv[..., 1] > 130), o, z)
-    return img
+
+    mask = np.where(np.logical_and(
+        np.logical_and(hsv[..., 0] >= h["min"], hsv[..., 0] <= h["max"]) if h["min"] < h["max"]  # Hue
+        else np.logical_or(hsv[..., 0] >= h["min"], hsv[..., 0] <= h["max"]),
+        np.logical_and(np.logical_and(hsv[..., 1] >= s["min"], hsv[..., 1] <= s["max"]),  # Saturation
+                       np.logical_and(hsv[..., 2] >= v["min"], hsv[..., 2] <= v["max"]))  # Value
+    ),
+        o, z)
+
+    # color_mask = frame
+    # color_mask[np.where(mask == False)] = [0, 0, 0]
+
+    return mask
 
 
 def get_spline_image(spline_coords, shape):
@@ -91,19 +105,15 @@ def process_image(img):
     return img, idx
 
 
-def preprocess_image(img, masked):
+def preprocess_image(img):
     """
     Common function for preprocessing the image. It:
-    * finds mask if needed
     * perform morphological open to filter out the noise
-    :param img: image or mask
+    :param img: binary image
     :type img: np.array
-    :param masked: info whether the mask is needed
-    :type masked: bool
-    :return: masked and filtered image
+    :return: filtered image
     :rtype: np.array
     """
-    img = img if masked else set_mask(img)
     x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
     img_part = img[y:y + h, x:x + w]
     img_part = cv2.erode(img_part, np.ones((3, 3)))
