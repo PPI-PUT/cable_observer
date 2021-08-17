@@ -13,9 +13,7 @@ from src.cable_observer.utils.utils import get_spline_path, create_spline_dir
 
 parser = argparse.ArgumentParser(description='Cable observer processes the cable masks into spline control points'
                                              'and points along the path and saves it into spline.csv in the dataset folder')
-parser.add_argument('-c', '--camera', type=int, default=-1, help='Camera input ID')
 parser.add_argument('-i', '--images', type=str, default="", help='Images path')
-parser.add_argument('-v', '--video', type=str, default="/remodel_ws/src/cable_observer/videos/output_v4.avi", help='Video file path')
 parser.add_argument('-d', '--debug', default=False, action='store_true', help="Debug output")
 parser.add_argument('-s', '--save_dataframe', default=False, action='store_true', help='If true then saves splines metadata')
 parser.add_argument('-o', '--save_output', default=False, action='store_true', help='If true then saves the images of the splines')
@@ -79,28 +77,6 @@ if __name__ == "__main__":
             frame = cv2.imread(path, params['input']['color'])  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
             spline_metadata, flag_shutdown = main(frame=frame, img_spline_path=path, dataframe_index=i)
             df = df.append(spline_metadata)
-
-    # Video / Camera input
-    else:
-        flag_shutdown = False
-        i = 0
-        cap = cv2.VideoCapture(args.video if args.video else args.camera)
-
-        # Skip blank frames
-        for x in range(100):
-            _, frame = cap.read()
-
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if ret and not flag_shutdown:
-                sample, flag_shutdown = main(frame=frame,
-                                             img_spline_path=os.path.join(spline_path, str(time()) + ".png"),
-                                             dataframe_index=i)
-                df = df.append(sample)
-                i += 1
-            else:
-                cap.release()
-                break
 
     if args.save_dataframe:
         csv_path = os.path.join("/".join(spline_path.split("/")[:-1]), "spline.csv")
