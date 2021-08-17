@@ -273,7 +273,8 @@ def sort_paths(paths):
 
 
     t0 = time()
-    conn, skips, stats, loss = find_order_of_paths_two_cases(conn, skips, stats, dists, 0.)
+    #conn, skips, stats, loss = find_order_of_paths_two_cases(conn, skips, stats, dists, 0.)
+    conn, skips, stats, loss = find_order_of_paths(conn, skips, stats, dists, 0.)
     t1 = time()
     a = t1 - t0
 
@@ -302,7 +303,7 @@ def sort_paths(paths):
     return resultant_paths
 
 
-def generate_paths(skeleton, paths_ends, params_path):
+def generate_paths(skeleton, depth, paths_ends, params_path):
     """
     Get total length of paths and gaps.
     :param skeleton: skeleton image
@@ -319,7 +320,8 @@ def generate_paths(skeleton, paths_ends, params_path):
     skel[1:-1, 1:-1] = skeleton
     while len(paths_ends) > 0:
         coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
-        paths.append(Path(coordinates=coordinates, length=length,
+        z_coordinates = depth[coordinates[:, 0] - 1, coordinates[:, 1] - 1]
+        paths.append(Path(coordinates=coordinates, z_coordinates=z_coordinates, length=length,
                           num_of_knots=params_path['num_of_knots'],
                           num_of_pts=params_path['num_of_pts'],
                           max_width=params_path['max_width'],
@@ -354,7 +356,7 @@ def concatenate_paths(paths):
     :return: list of Path objects
     :rtype: list(Path)
     """
-    return np.vstack([p() for p in paths])
+    return np.vstack([p() for p in paths]), np.concatenate([p.z_coordinates for p in paths], axis=0)
 
 
 def inverse_path(path, last_spline_coords, t, between_grippers):

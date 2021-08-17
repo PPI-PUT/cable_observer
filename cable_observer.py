@@ -35,7 +35,7 @@ dfp = DebugFrameProcessing()
 
 def main(frame, depth, img_spline_path, dataframe_index):
     flag_shutdown = False
-    spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame,
+    spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame, depth=depth,
                                                                                       last_spline_coords=last_spline_coords,
                                                                                       params=params)
     if args.debug:

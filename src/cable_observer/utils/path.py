@@ -4,12 +4,14 @@ from scipy.interpolate import LSQUnivariateSpline
 
 import matplotlib.pyplot as plt
 class Path:
-    def __init__(self, coordinates, length, num_of_knots=25, num_of_pts=256, max_width=40, width_step=4,
+    def __init__(self, coordinates, z_coordinates, length, num_of_knots=25, num_of_pts=256, max_width=40, width_step=4,
                  vector_dir_len=5):
         self.coordinates = np.array(coordinates).reshape((-1, 2))
+        self.z_coordinates = z_coordinates
         self.length = length
         self.x_spline = None
         self.y_spline = None
+        self.z_spline = None
         self.num_points = len(coordinates)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
@@ -46,17 +48,30 @@ class Path:
         :rtype: np.array, np.array, np.array, np.array
         """
         xys = np.stack(self.coordinates, axis=0)
+        zs = self.z_coordinates
         k = self.k - 4
         d = int((t.shape[0] - 2) / k) + 1
         knots = t[1:-1:d]
         self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
         self.y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
-        spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T)))
+        valid = zs != 0
+        t_v = t[valid]
+        knots_v = t_v[1:-1:d]
+        z_v = zs[valid]
+        self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
+        spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T), self.z_spline(self.T)))
+        #plt.subplot(221)
+        #plt.plot(spline_coords[:, 0], spline_coords[:, 1])
+        #plt.subplot(222)
+        #plt.plot(np.linspace(0., 1., z_v.shape[0]), z_v, 'rx')
+        #plt.plot(self.T, spline_coords[:, -1])
+        #plt.show()
 
         # quickfix to ignore part of the cable which is not between the grippers
         if between_grippers:
             xs = self.x_spline(self.T)
             ys = self.y_spline(self.T)
+            zs = self.z_spline(self.T)
             dx = xs[1:] - xs[:-1]
             dy = ys[1:] - ys[:-1]
             ratio = dx / dy
@@ -69,7 +84,8 @@ class Path:
             knots = t[1:-1:d]
             self.x_spline = LSQUnivariateSpline(t, xs, knots)
             self.y_spline = LSQUnivariateSpline(t, ys, knots)
-            spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T)))
+            self.z_spline = LSQUnivariateSpline(t, zs, knots)
+            spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T), self.z_spline(self.T)))
         return spline_coords
 
     def get_spline_params(self):
@@ -117,6 +133,7 @@ class Path:
         :return: lower and upper bound spline coordinates of the DLO
         :rtype: np.array, np.array
         """
+        spline_coords = spline_coords[:, :2]
         mask = np.pad(mask, [[self.max_width, self.max_width], [self.max_width, self.max_width]], 'constant', constant_values=False)
         x = spline_coords[:, 0] + self.max_width
         y = spline_coords[:, 1] + self.max_width
