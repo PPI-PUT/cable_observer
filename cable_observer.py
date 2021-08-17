@@ -9,6 +9,7 @@ from src.cable_observer.utils.debug_frame_processing import DebugFrameProcessing
 from src.cable_observer.utils.tracking import track
 from src.cable_observer.utils.image_processing import get_spline_image
 from src.cable_observer.utils.utils import get_spline_path, create_spline_dir
+import numpy as np
 
 
 parser = argparse.ArgumentParser(description='Cable observer processes the cable masks into spline control points'
@@ -32,7 +33,7 @@ last_spline_coords = None
 dfp = DebugFrameProcessing()
 
 
-def main(frame, img_spline_path, dataframe_index):
+def main(frame, depth, img_spline_path, dataframe_index):
     flag_shutdown = False
     spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame,
                                                                                       last_spline_coords=last_spline_coords,
@@ -73,9 +74,14 @@ def main(frame, img_spline_path, dataframe_index):
 if __name__ == "__main__":
     # Dataset input
     if args.images:
-        for i, path in enumerate(sorted(glob(os.path.join(args.images, "*.png")))):
-            frame = cv2.imread(path, params['input']['color'])  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
-            spline_metadata, flag_shutdown = main(frame=frame, img_spline_path=path, dataframe_index=i)
+        for i, (path_rgb, path_depth) in enumerate(zip(sorted(glob(os.path.join(args.images, "rgb_*.png"))),
+                                                       sorted(glob(os.path.join(args.images, "depth_*.txt"))))):
+            if i < 325:
+                continue
+            print(path_rgb)
+            frame = cv2.imread(path_rgb, params['input']['color'])[..., ::-1]  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
+            depth = np.loadtxt(path_depth)  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
+            spline_metadata, flag_shutdown = main(frame=frame, depth=depth, img_spline_path=path_rgb, dataframe_index=i)
             df = df.append(spline_metadata)
 
     if args.save_dataframe:
