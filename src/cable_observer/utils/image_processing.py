@@ -93,6 +93,10 @@ def process_image(img):
     idx = np.where(r > 0)
     idx = [[idx[1][i] + x, idx[0][i] + y] for i in range(len(idx[0]))]
     #t4 = time()
+    # In case there is no endpoint, then pick random point on skeleton
+    if len(idx) == 0:
+        idxs = np.where(skel)
+        idx = [[idxs[1][0] + x, idxs[0][0] + y]]
 
     img = np.zeros_like(img)
     img[y:y + h, x:x + w] = skel
