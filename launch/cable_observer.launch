@@ -1,46 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Specify your own video file path and debug mode -->
-    <arg name="camera" default="-1"/>
-    <arg name="images" default=""/>
-    <arg name="video" default=""/>
-    <arg name="debug" default="false"/>
-
-
-    <param name="/camera" value="$(arg camera)" type="int"/>
-    <param name="/images" value="$(arg images)" type="str"/>
-    <param name="/video" value="$(arg video)" type="str"/>
-    <param name="/debug" value="$(arg debug)" type="bool"/>
-
     <!--<rosparam command="load" file="$(find cable_observer)/config/params.yaml" />-->
 
     <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" />
-
-    <group unless="$(arg debug)">
-        <node name="view_camera_image_raw" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/camera/image_raw" />
-        </node>
-        <node name="view_camera_image_spline" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/camera/image_spline" />
-        </node>
-    </group>
-
-    <group if="$(arg debug)">
-        <node name="view_debug_image_merged" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/debug/image_merged" />
-        </node>
-        <node name="view_debug_image_spline" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/debug/image_spline" />
-        </node>
-        <node name="view_debug_image_prediction" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/debug/image_prediction" />
-        </node>
-        <node name="view_debug_image_mask" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/debug/image_mask" />
-        </node>
-        <node name="view_debug_image_skeleton" pkg="image_view" type="image_view" output="screen" >
-            <remap from="image" to="/debug/image_skeleton" />
-        </node>
-    </group>
 
 </launch>
