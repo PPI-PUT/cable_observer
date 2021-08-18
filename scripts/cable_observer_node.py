@@ -4,114 +4,76 @@ import cv2
 import numpy as np
 import yaml
 import rospkg
+import time
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float64MultiArray, MultiArrayDimension
+from std_msgs.msg import Float64MultiArray, MultiArrayDimension, Float64
 from cv_bridge import CvBridge, CvBridgeError
 from cable_observer.utils.tracking import track
-from cable_observer.utils.image_processing import get_spline_image
-from cable_observer.utils.debug_frame_processing import DebugFrameProcessing
 
 
 class CableObserver:
     def __init__(self):
-        self.camera = rospy.get_param("/camera")
-        self.images = rospy.get_param("/images")
-        self.video = rospy.get_param("/video")
-        self.debug = rospy.get_param("/debug")
         rospack = rospkg.RosPack()
         stream = open(rospack.get_path('cable_observer') + "/config/params.yaml", 'r')
         self.params = yaml.load(stream, Loader=yaml.FullLoader)
         self.bridge = CvBridge()
-        if self.video:
-            self.cap = cv2.VideoCapture(self.video)
-        else:
-            self.cap = cv2.VideoCapture(self.camera)
-        self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        self.skip_blank_frames()
-        self._dfp = DebugFrameProcessing()
         self.last_spline_coords = None
-        self.image_raw_pub = rospy.Publisher("/camera/image_raw", Image, queue_size=1)
-        self.image_spline_pub = rospy.Publisher("/camera/image_spline", Image, queue_size=1)
-        self.coeffs_pub = rospy.Publisher("/spline/coeffs", Float64MultiArray, queue_size=1)
-        self.coords_pub = rospy.Publisher("/spline/coords", Float64MultiArray, queue_size=1)
-        if self.debug:
-            self.debug_image_merged_pub = rospy.Publisher("/debug/image_merged", Image, queue_size=1)
-            self.debug_image_spline_pub = rospy.Publisher("/debug/image_spline", Image, queue_size=1)
-            self.debug_image_prediction_pub = rospy.Publisher("/debug/image_prediction", Image, queue_size=1)
-            self.debug_image_mask_pub = rospy.Publisher("/debug/image_mask", Image, queue_size=1)
-            self.debug_image_skeleton_pub = rospy.Publisher("/debug/image_skeleton", Image, queue_size=1)
+        self.mask_sub = rospy.Subscriber("/image/mask/ground_truth", Image, self.mask_callback, queue_size=1)
+        self.coords_pub = rospy.Publisher("/points/prediction", Float64MultiArray, queue_size=1)
+        self.inference_ms_pub = rospy.Publisher("/points/inference_ms", Float64, queue_size=1)
 
     def __del__(self, reason="Shutdown"):
-        self.cap.release()
         cv2.destroyAllWindows()
         rospy.signal_shutdown(reason=reason)
 
-    def skip_blank_frames(self):
-        for i in range(100):
-            _, _ = self.cap.read()
-
     def img_to_msg(self, img: np.array, publisher: rospy.Publisher):
         try:
-            img_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
+            img_msg = self.bridge.cv2_to_imgmsg(img, encoding='mono8')
             publisher.publish(img_msg)
         except (CvBridgeError, TypeError) as e:
             rospy.logwarn(e)
-            self.__del__(reason="Exception")
 
-    def publish_array(self, arr: np.array, publisher: rospy.Publisher):
+    @staticmethod
+    def generate_2d_array_msg(arr):
         arr_msg = Float64MultiArray()
-        arr_msg.data = np.hstack([arr[0] / self.height, arr[1] / self.width]).tolist()
+        arr_msg.data = np.hstack(arr).tolist()
+        arr_msg.layout.dim = [MultiArrayDimension(), MultiArrayDimension()]
 
-        dim_v = MultiArrayDimension()
-        dim_v.label = "v"
-        dim_v.size = len(arr[0])
-        dim_v.stride = len(arr[0]) * 2
+        arr_msg.layout.dim[0].label = "channels"
+        arr_msg.layout.dim[0].size = arr.shape[0]  # channels
+        arr_msg.layout.dim[0].stride = arr.size  # channels * samples
 
-        dim_u = MultiArrayDimension()
-        dim_u.label = "u"
-        dim_u.size = len(arr[1])
-        dim_u.stride = len(arr)
+        arr_msg.layout.dim[1].label = "samples"
+        arr_msg.layout.dim[1].size = arr.shape[1]  # samples
+        arr_msg.layout.dim[1].stride = arr.shape[1]  # samples
 
-        dims = [dim_v, dim_u]
-        arr_msg.layout.dim = dims
+        return arr_msg
 
-        publisher.publish(arr_msg)
+    def mask_callback(self, msg):
+        try:
+            frame = self.bridge.imgmsg_to_cv2(img_msg=msg, desired_encoding="mono8")
+            self.main(frame=frame)
+        except (CvBridgeError, TypeError) as e:
+            rospy.logwarn(e)
 
-    def main(self, event):
-        ret, frame = self.cap.read()
-        if not ret:
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            ret, frame = self.cap.read()
-
-        self.img_to_msg(img=frame, publisher=self.image_raw_pub)
-
+    def main(self, frame):
+        t_start_s = time.time()
         spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame,
                                                                                           last_spline_coords=self.last_spline_coords,
                                                                                           params=self.params)
-        spline_img = get_spline_image(spline_coords=spline_coords, shape=frame.shape)
-        self.img_to_msg(img=np.uint8(spline_img * 255), publisher=self.image_spline_pub)
+        t_inference_ms = (time.time() - t_start_s) * 1000
 
-        self.publish_array(arr=spline_params["coeffs"], publisher=self.coeffs_pub)
-        self.publish_array(arr=spline_coords.T, publisher=self.coords_pub)
+        # Publish inference time
+        inference_ms_msg = Float64()
+        inference_ms_msg.data = t_inference_ms
+        self.inference_ms_pub.publish(inference_ms_msg)
 
-        if self.debug:
-            self._dfp.set_debug_state(frame, self.last_spline_coords, spline_coords, spline_params, skeleton, mask,
-                                      lower_bound, upper_bound, t)
-            self._dfp.run_debug_sequence()
-            self._dfp.print_t()
-            self.img_to_msg(img=self._dfp.img_frame, publisher=self.debug_image_merged_pub)
-            self.img_to_msg(img=self._dfp.img_spline, publisher=self.debug_image_spline_pub)
-            self.img_to_msg(img=self._dfp.img_pred, publisher=self.debug_image_prediction_pub)
-            self.img_to_msg(img=self._dfp.img_mask, publisher=self.debug_image_mask_pub)
-            self.img_to_msg(img=self._dfp.img_skeleton, publisher=self.debug_image_skeleton_pub)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            self.__del__(reason="Received \"q\" key")
+        # Publish arrays
+        coords_msg = self.generate_2d_array_msg(arr=spline_coords.T)
+        self.coords_pub.publish(coords_msg)
 
 
 if __name__ == "__main__":
-    rospy.init_node("video_node")
+    rospy.init_node("cable_observer_node")
     co = CableObserver()
-    rospy.Timer(rospy.Duration(1.0 / 30.0), co.main)
     rospy.spin()
