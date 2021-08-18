@@ -92,13 +92,13 @@ class Path:
         """
         Get spline parameters:
             * length - full length of spline including gaps
-            * coeffs - spline coefficients [x, y]
-            * residuals - spline residuals [x, y]
+            * coeffs - spline coefficients [x, y, z]
+            * residuals - spline residuals [x, y, z]
         :return: spline params
         :rtype: dict
         """
-        coeffs = np.array([self.x_spline.get_coeffs(), self.y_spline.get_coeffs()])
-        residuals = np.array([self.x_spline.get_residual(), self.y_spline.get_residual()])
+        coeffs = np.array([self.x_spline.get_coeffs(), self.y_spline.get_coeffs(), self.z_spline.get_coeffs()])
+        residuals = np.array([self.x_spline.get_residual(), self.y_spline.get_residual(), self.z_spline.get_residual()])
 
         return {"length": self.length, "coeffs": coeffs, "residuals": residuals}
 
