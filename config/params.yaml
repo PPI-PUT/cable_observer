@@ -1,6 +1,6 @@
 ---
 input:
-    color: 1  # 0 for grayscale, 1 for color
+    color: 0  # 0 for grayscale, 1 for color
 path:
     num_of_knots: 25
     num_of_pts: 256
