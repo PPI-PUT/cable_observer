@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description='Cable observer processes the cable
 parser.add_argument('-c', '--camera', type=int, default=-1, help='Camera input ID')
 parser.add_argument('-i', '--images', type=str, default="", help='Images path')
 parser.add_argument('-v', '--video', type=str, default="/remodel_ws/src/cable_observer/videos/output_v4.avi", help='Video file path')
-parser.add_argument('-d', '--debug', default=False, action='store_true', help="Debug output")
+parser.add_argument('-d', '--debug', default=True, action='store_true', help="Debug output")
 parser.add_argument('-s', '--save_dataframe', default=False, action='store_true', help='If true then saves splines metadata')
 parser.add_argument('-o', '--save_output', default=False, action='store_true', help='If true then saves the images of the splines')
 args = parser.parse_args()
@@ -62,10 +62,10 @@ def main(frame, img_spline_path, dataframe_index):
 
     # Generate dataframe sample for current spline
     spline_metadata = pd.DataFrame({"image_filename": os.path.basename(img_spline_path),
-                           "control_points_x": [spline_params['coeffs'][0], ],
-                           "control_points_y": [spline_params['coeffs'][1], ],
-                           "points_on_curve_x": [spline_coords[:, 0], ],
-                           "points_on_curve_y": [spline_coords[:, 1], ],
+                           "control_points_x": [[el for el in spline_params['coeffs'][1]], ],
+                           "control_points_y": [[el for el in spline_params['coeffs'][0]], ],
+                           "points_on_curve_x": [[el for el in spline_coords[:, 1]], ],
+                           "points_on_curve_y": [[el for el in spline_coords[:, 0]], ],
                            }, index=[0])
     spline_metadata.index = [dataframe_index]
 
