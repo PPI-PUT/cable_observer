@@ -50,6 +50,6 @@ def track(frame, depth, last_spline_coords, params):
     t5 = time()
 
     # Find borders of the DLO and its width
-    lower_bound, upper_bound = concatenated_paths.get_bounds(mask, spline_coords, common_width=True)
+    lower_bound, upper_bound = concatenated_paths.get_bounds(mask.astype(bool), spline_coords, common_width=True)
 
     return spline_coords, spline_params, skeleton.astype(np.float64) * 255, mask, lower_bound, upper_bound, [t1, t2, t3, t4, t5]
