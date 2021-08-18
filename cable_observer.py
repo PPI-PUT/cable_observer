@@ -35,7 +35,8 @@ dfp = DebugFrameProcessing()
 
 def main(frame, depth, img_spline_path, dataframe_index):
     flag_shutdown = False
-    spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame, depth=depth,
+    spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t = track(frame=frame,
+                                                                                      depth=depth,
                                                                                       last_spline_coords=last_spline_coords,
                                                                                       params=params)
     if args.debug:
@@ -61,10 +62,12 @@ def main(frame, depth, img_spline_path, dataframe_index):
 
     # Generate dataframe sample for current spline
     spline_metadata = pd.DataFrame({"image_filename": os.path.basename(img_spline_path),
-                           "control_points_x": [spline_params['coeffs'][0], ],
-                           "control_points_y": [spline_params['coeffs'][1], ],
-                           "points_on_curve_x": [spline_coords[:, 0], ],
-                           "points_on_curve_y": [spline_coords[:, 1], ],
+                           "control_points_x": [spline_params['coeffs'][1], ],
+                           "control_points_y": [spline_params['coeffs'][0], ],
+                           "control_points_z": [spline_params['coeffs'][2], ],
+                           "points_on_curve_x": [spline_coords[:, 1], ],
+                           "points_on_curve_y": [spline_coords[:, 0], ],
+                           "points_on_curve_z": [spline_coords[:, 2], ],
                            }, index=[0])
     spline_metadata.index = [dataframe_index]
 
@@ -76,10 +79,10 @@ if __name__ == "__main__":
     if args.images:
         for i, (path_rgb, path_depth) in enumerate(zip(sorted(glob(os.path.join(args.images, "rgb_*.png"))),
                                                        sorted(glob(os.path.join(args.images, "depth_*.txt"))))):
-            if i < 325:
-                continue
+            #if i < 325:
+            #    continue
             print(path_rgb)
-            frame = cv2.imread(path_rgb, params['input']['color'])[..., ::-1]  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
+            frame = cv2.imread(path_rgb, params['input']['color'])  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
             depth = np.loadtxt(path_depth)  # cv2.IMREAD_GRAYSCALE / cv2.IMREAD_COLOR flag
             spline_metadata, flag_shutdown = main(frame=frame, depth=depth, img_spline_path=path_rgb, dataframe_index=i)
             df = df.append(spline_metadata)
