@@ -32,6 +32,7 @@ class Path:
         Reverse sequence of coordinates.
         """
         self.coordinates = np.flip(self.coordinates, axis=0)
+        self.z_coordinates = np.flip(self.z_coordinates, axis=0)
         self.begin = self.coordinates[0]
         self.end = self.coordinates[-1]
 
