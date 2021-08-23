@@ -6,13 +6,15 @@ import yaml
 import rospkg
 import time
 import message_filters
-from sensor_msgs.msg import Image, CameraInfo, PointCloud2
+from sensor_msgs.msg import Image, PointCloud2
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from std_msgs.msg import Float64MultiArray, MultiArrayDimension, Float64
 from cv_bridge import CvBridge, CvBridgeError
 from ros_numpy import point_cloud2
 from cable_observer.utils.tracking import track
+
+FRAME_ID = "kinect2_rgb_optical_frame"
 
 
 class CableObserver:
@@ -30,7 +32,6 @@ class CableObserver:
         self.inference_ms_pub = rospy.Publisher("/points/inference_ms", Float64, queue_size=1)
         self.marker_pub = rospy.Publisher("/points/marker", Marker, queue_size=1)
         self.depth_pub = rospy.Publisher("/camera/depth/image_depth", Image, queue_size=1)
-        self.camera_info_pub = rospy.Publisher("/camera/depth/camera_info", CameraInfo, queue_size=1)
         self.pc_pub = rospy.Publisher("/camera/depth/points", PointCloud2, queue_size=1)
 
     def __del__(self, reason="Shutdown"):
@@ -57,8 +58,8 @@ class CableObserver:
     def generate_marker_msg(arr):
         marker_msg = Marker()
         marker_msg.header.stamp = rospy.Time.now()
-        marker_msg.header.frame_id = "camera_depth_frame"
-        marker_msg.type = marker_msg.POINTS
+        marker_msg.header.frame_id = FRAME_ID
+        marker_msg.type = marker_msg.LINE_STRIP
         marker_msg.action = marker_msg.ADD
 
         marker_msg.scale.x = 1
@@ -90,23 +91,22 @@ class CableObserver:
 
         return marker_msg
 
-    def generate_depth_msg(self, mask_depth, depth):
+    def generate_depth_pcd_msgs(self, mask_depth, depth):
         try:
             depth[np.where(mask_depth == 0)] = 0
             depth_msg = self.bridge.cv2_to_imgmsg(depth, encoding="16UC1")
             depth_msg.header.stamp = rospy.Time.now()
-            depth_msg.header.frame_id = "kinect2_rgb_optical_frame"
-            pc_msg = point_cloud2.array_to_pointcloud2(depth.astype([('x', 'f4'), ('y', 'f4'), ('z', 'f4')]))
-            pc_msg.header = depth_msg.header
+            depth_msg.header.frame_id = FRAME_ID
+            pc_arr = np.array([np.where(depth)[1], np.where(depth)[0], depth[np.where(depth)]])
+            output_dtype = np.dtype(
+                {'names': ['x', 'y', 'z'], 'formats': ['<f4', '<f4', '<f4']})
+            new_points = np.core.records.fromarrays(pc_arr, output_dtype)
+            pc_msg = point_cloud2.array_to_pointcloud2(new_points,
+                                                       stamp=depth_msg.header.stamp,
+                                                       frame_id=depth_msg.header.frame_id)
             return depth_msg, pc_msg
         except (CvBridgeError, TypeError) as e:
             rospy.logwarn(e)
-
-    @staticmethod
-    def generate_camera_info_msg(depth_msg):
-        info_msg = CameraInfo()
-        info_msg.header = depth_msg.header
-        return info_msg
 
     def images_callback(self, frame_msg, depth_msg):
         try:
@@ -139,11 +139,9 @@ class CableObserver:
         self.marker_pub.publish(marker_msg)
 
         # Publish depth & camera info
-        depth_msg, pc_msg = self.generate_depth_msg(mask_depth=mask_depth, depth=depth)
-        info_msg = self.generate_camera_info_msg(depth_msg=depth_msg)
+        depth_msg, pc_msg = self.generate_depth_pcd_msgs(mask_depth=mask_depth, depth=depth)
         self.depth_pub.publish(depth_msg)
         self.pc_pub.publish(pc_msg)
-        self.camera_info_pub.publish(info_msg)
 
 
 if __name__ == "__main__":
