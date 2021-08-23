@@ -10,13 +10,13 @@ def track(frame, depth, last_spline_coords, params):
     t1 = time()
     # Get mask
     #mask = frame if not params['input']['color'] else set_mask(frame, params['hsv'])
-    mask_depth = set_mask_3d(depth, params['depth'])
+    mask_depth = set_mask_3d(depth=depth, params_depth=params['depth'])
 
     # Preprocess image
-    mask = preprocess_image(mask_depth)
+    mask = preprocess_image(img=mask_depth)
 
     # Get image skeleton
-    skeleton, paths_ends = process_image(mask)
+    skeleton, paths_ends = process_image(img=mask)
     t2 = time()
 
     # Create paths
@@ -24,10 +24,10 @@ def track(frame, depth, last_spline_coords, params):
     t3 = time()
 
     # Get rid of too short paths
-    paths = select_paths(paths)
+    paths = select_paths(paths=paths, params_path=params['path'])
 
     # Sort paths
-    paths = sort_paths(paths)
+    paths = sort_paths(paths=paths)
     t4 = time()
 
     # Calculate gaps between adjacent paths

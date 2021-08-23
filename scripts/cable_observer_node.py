@@ -71,23 +71,9 @@ class CableObserver:
         marker_msg.color.g = 1.0
         marker_msg.color.b = 0.0
 
-        marker_msg.pose.orientation.x = 0.0
-        marker_msg.pose.orientation.y = 0.0
-        marker_msg.pose.orientation.z = 0.0
         marker_msg.pose.orientation.w = 1.0
 
-        marker_msg.pose.position.x = 0.0
-        marker_msg.pose.position.y = 0.0
-        marker_msg.pose.position.z = 0.0
-
-        marker_msg.points = []
-
-        for sample in arr.T:
-            point = Point()
-            point.x = sample[0]
-            point.y = sample[1]
-            point.z = sample[2]
-            marker_msg.points.append(point)
+        marker_msg.points = [Point(x=point[0], y=point[1], z=point[2]) for point in arr.T]
 
         return marker_msg
 
@@ -138,7 +124,7 @@ class CableObserver:
         marker_msg = self.generate_marker_msg(arr=np.array([spline_coords.T[1], spline_coords.T[0], spline_coords.T[2]]))
         self.marker_pub.publish(marker_msg)
 
-        # Publish depth & camera info
+        # Publish depth image & pointcloud
         depth_msg, pc_msg = self.generate_depth_pcd_msgs(mask_depth=mask_depth, depth=depth)
         self.depth_pub.publish(depth_msg)
         self.pc_pub.publish(pc_msg)
