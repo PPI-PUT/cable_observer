@@ -10,6 +10,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>depth_image_proc</exec_depend>
   <exec_depend>image_view</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python-skimage-pip</exec_depend>

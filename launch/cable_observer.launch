@@ -4,4 +4,14 @@
 
     <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" />
 
+    <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" />
+
+    <node pkg="tf" type="static_transform_publisher" name="link_broadcaster" args="0 0 0 0 0 0 1 map kinect2_rgb_optical_frame 100" />
+
+    <!--<node pkg="nodelet" type="nodelet" name="nodelet" args="load depth_image_proc/point_cloud_xyz nodelet_manager">
+        <remap from="camera_info" to="/camera/depth/camera_info"/>
+        <remap from="image_rect" to="/camera/depth/image_depth"/>
+        <remap from="points" to="/camera/depth/points"/>
+    </node>-->
+
 </launch>

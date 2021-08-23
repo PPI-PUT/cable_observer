@@ -1,4 +1,4 @@
-from .image_processing import set_mask, process_image, preprocess_image
+from .image_processing import set_mask, process_image, preprocess_image, set_mask_3d
 from .paths_processing import get_gaps_length, get_linspaces, sort_paths, generate_paths, select_paths, \
     concatenate_paths, get_paths_and_gaps_length, inverse_path
 from .path import Path
@@ -9,10 +9,11 @@ from time import time
 def track(frame, depth, last_spline_coords, params):
     t1 = time()
     # Get mask
-    mask = frame if not params['input']['color'] else set_mask(frame, params['hsv'])
+    #mask = frame if not params['input']['color'] else set_mask(frame, params['hsv'])
+    mask_depth = set_mask_3d(depth, params['depth'])
 
     # Preprocess image
-    mask = preprocess_image(mask)
+    mask = preprocess_image(mask_depth)
 
     # Get image skeleton
     skeleton, paths_ends = process_image(mask)
@@ -52,4 +53,5 @@ def track(frame, depth, last_spline_coords, params):
     # Find borders of the DLO and its width
     lower_bound, upper_bound = concatenated_paths.get_bounds(mask.astype(bool), spline_coords, common_width=True)
 
-    return spline_coords, spline_params, skeleton.astype(np.float64) * 255, mask, lower_bound, upper_bound, [t1, t2, t3, t4, t5]
+    return spline_coords, spline_params, skeleton.astype(np.float64) * 255, mask, lower_bound, upper_bound, \
+           [t1, t2, t3, t4, t5], mask_depth

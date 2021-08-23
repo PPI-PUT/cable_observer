@@ -3,11 +3,27 @@ import numpy as np
 from skimage.morphology import skeletonize
 
 
+def set_mask_3d(depth, depth_params):
+    """
+    Extract cable using depth input.
+    :param depth: camera input depth frame (W x H x 1)
+    :type depth: np.array
+    :param depth_params: depth threshold parameters
+    :type depth_params: dict
+    :return: binary mask (W x H)
+    :rtype: np.array
+    """
+    mask = np.logical_and(depth > depth_params["min"], depth < depth_params["max"]).astype(np.uint8) * 255
+    return mask
+
+
 def set_mask(frame, hsv_params):
     """
     Extract cable using HSV mask.
     :param frame: camera input frame (W x H x 3)
     :type frame: np.array
+    :param hsv_params: hsv threshold parameters
+    :type hsv_params: dict
     :return: binary mask (W x H)
     :rtype: np.array
     """
@@ -120,11 +136,16 @@ def preprocess_image(img):
     """
     x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
     img_part = img[y:y + h, x:x + w]
-    img_part = cv2.erode(img_part, np.ones((3, 3)))
-    img_part = cv2.dilate(img_part, np.ones((3, 3)))
-    img = np.zeros_like(img)
-    img[y:y + h, x:x + w] = img_part
+    # pyr_img = cv2.pyrDown(src=img_part)
+    # pyr_img = cv2.pyrDown(src=pyr_img)
+    # pyr_img = cv2.pyrUp(src=pyr_img)
+    # pyr_img = cv2.pyrUp(src=pyr_img)
+    # pyr_img = cv2.resize(pyr_img, dsize=img_part.T.shape)
+    #
+    # pyr_img = cv2.dilate(pyr_img, np.ones((3, 3)), iterations=10).astype(bool)
+    # img = np.zeros_like(img)
+    # img[y:y + h, x:x + w] = pyr_img*255
 
-    #img = cv2.erode(img, np.ones((3, 3)))
-    #img = cv2.dilate(img, np.ones((3, 3)))
-    return img
+    img = cv2.erode(img, np.ones((3, 3)))
+    img = cv2.dilate(img, np.ones((3, 3)))
+    return img.astype(np.uint8)
