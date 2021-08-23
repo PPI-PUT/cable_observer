@@ -320,7 +320,7 @@ def generate_paths(skeleton, depth, paths_ends, params_path):
     skel[1:-1, 1:-1] = skeleton
     while len(paths_ends) > 0:
         coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
-        z_coordinates = depth[coordinates[:, 0] - 1, coordinates[:, 1] - 1]
+        z_coordinates = depth[coordinates[:, 0], coordinates[:, 1]]
         paths.append(Path(coordinates=coordinates, z_coordinates=z_coordinates, length=length,
                           num_of_knots=params_path['num_of_knots'],
                           num_of_pts=params_path['num_of_pts'],
@@ -331,7 +331,7 @@ def generate_paths(skeleton, depth, paths_ends, params_path):
     return paths
 
 
-def select_paths(paths, min_points=3, min_length=10):
+def select_paths(paths, params_path):
     """
     Get rid of too short paths.
     :param paths: list of Path objects
@@ -343,8 +343,8 @@ def select_paths(paths, min_points=3, min_length=10):
     :return: list of Path objects
     :rtype: list(Path)
     """
-    paths = [p for p in paths if p.num_points > min_points]
-    paths = [p for p in paths if p.length > min_length]
+    paths = [p for p in paths if p.num_points > params_path['min_points']]
+    paths = [p for p in paths if p.length > params_path['min_length']]
     return paths
 
 
