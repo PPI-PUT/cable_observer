@@ -6,7 +6,6 @@ import pandas as pd
 import yaml
 import rospkg
 import time
-import message_filters
 from sensor_msgs.msg import Image, PointCloud2
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
@@ -15,8 +14,6 @@ from cv_bridge import CvBridge, CvBridgeError
 from ros_numpy import point_cloud2
 from cable_observer.utils.tracking import track
 from std_srvs.srv import Empty, EmptyResponse
-
-FRAME_ID = "kinect2_rgb_optical_frame"
 
 
 class CableObserver:
@@ -30,10 +27,7 @@ class CableObserver:
         self.df = pd.DataFrame()
         self.df_index = 0
         self.srv = rospy.Service("save_df", Empty, self.handle_save_df)
-        self.image_sub = message_filters.Subscriber("/camera/color/image_raw", Image)
-        self.depth_sub = message_filters.Subscriber("/camera/aligned_depth_to_color/image_raw", Image)
-        self.ts = message_filters.TimeSynchronizer([self.image_sub, self.depth_sub], queue_size=1)
-        self.ts.registerCallback(self.images_callback)
+        self.depth_sub = rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.images_callback)
         self.coords_pub = rospy.Publisher("/points/prediction", Float64MultiArray, queue_size=1)
         self.inference_ms_pub = rospy.Publisher("/points/inference_ms", Float64, queue_size=1)
         self.marker_pub = rospy.Publisher("/points/marker", Marker, queue_size=1)
@@ -64,11 +58,10 @@ class CableObserver:
 
         return arr_msg
 
-    @staticmethod
-    def generate_marker_msg(arr):
+    def generate_marker_msg(self, arr):
         marker_msg = Marker()
         marker_msg.header.stamp = rospy.Time.now()
-        marker_msg.header.frame_id = FRAME_ID
+        marker_msg.header.frame_id = self.params["input"]["frame_id"]
         marker_msg.type = marker_msg.LINE_STRIP
         marker_msg.action = marker_msg.ADD
 
@@ -92,7 +85,7 @@ class CableObserver:
             depth[np.where(mask_depth == 0)] = 0
             depth_msg = self.bridge.cv2_to_imgmsg(depth, encoding="16UC1")
             depth_msg.header.stamp = rospy.Time.now()
-            depth_msg.header.frame_id = FRAME_ID
+            depth_msg.header.frame_id = self.params["input"]["frame_id"]
             pc_arr = np.array([np.where(depth)[1], np.where(depth)[0], depth[np.where(depth)]])
             output_dtype = np.dtype(
                 {'names': ['x', 'y', 'z'], 'formats': ['<f4', '<f4', '<f4']})
@@ -117,18 +110,18 @@ class CableObserver:
         self.df = self.df.append(spline_metadata)
         self.df_index += 1
 
-    def images_callback(self, frame_msg, depth_msg):
+    def images_callback(self, depth_msg):
         try:
-            frame = self.bridge.imgmsg_to_cv2(img_msg=frame_msg, desired_encoding="8UC3")
+            #frame = self.bridge.imgmsg_to_cv2(img_msg=frame_msg, desired_encoding="8UC3")
             depth = self.bridge.imgmsg_to_cv2(img_msg=depth_msg, desired_encoding="16UC1")
-            self.main(frame=frame, depth=depth)
+            self.main(depth=depth)
         except (CvBridgeError, TypeError) as e:
             rospy.logwarn(e)
 
-    def main(self, frame, depth):
+    def main(self, depth):
         t_start_s = time.time()
         spline_coords, spline_params, skeleton, mask, lower_bound, upper_bound, t, mask_depth = \
-            track(frame=frame,
+            track(frame=None,
                   depth=depth,
                   last_spline_coords=self.last_spline_coords,
                   params=self.params)
