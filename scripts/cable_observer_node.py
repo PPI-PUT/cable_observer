@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+import os
 import rospy
-import cv2
 import numpy as np
+import pandas as pd
 import yaml
 import rospkg
 import time
@@ -13,6 +14,7 @@ from std_msgs.msg import Float64MultiArray, MultiArrayDimension, Float64
 from cv_bridge import CvBridge, CvBridgeError
 from ros_numpy import point_cloud2
 from cable_observer.utils.tracking import track
+from std_srvs.srv import Empty, EmptyResponse
 
 FRAME_ID = "kinect2_rgb_optical_frame"
 
@@ -21,9 +23,13 @@ class CableObserver:
     def __init__(self):
         rospack = rospkg.RosPack()
         stream = open(rospack.get_path('cable_observer') + "/config/params.yaml", 'r')
+        self.csv_path = os.path.join(rospack.get_path('cable_observer'), "spline/spline.csv")
         self.params = yaml.load(stream, Loader=yaml.FullLoader)
         self.bridge = CvBridge()
         self.last_spline_coords = None
+        self.df = pd.DataFrame()
+        self.df_index = 0
+        self.srv = rospy.Service("save_df", Empty, self.handle_save_df)
         self.image_sub = message_filters.Subscriber("/camera/color/image_raw", Image)
         self.depth_sub = message_filters.Subscriber("/camera/aligned_depth_to_color/image_raw", Image)
         self.ts = message_filters.TimeSynchronizer([self.image_sub, self.depth_sub], queue_size=1)
@@ -35,8 +41,12 @@ class CableObserver:
         self.pc_pub = rospy.Publisher("/camera/depth/points", PointCloud2, queue_size=1)
 
     def __del__(self, reason="Shutdown"):
-        cv2.destroyAllWindows()
         rospy.signal_shutdown(reason=reason)
+
+    def handle_save_df(self, req):
+        self.df.to_csv(self.csv_path)
+        rospy.loginfo("Dataframe saved")
+        return EmptyResponse()
 
     @staticmethod
     def generate_2d_array_msg(arr):
@@ -94,6 +104,19 @@ class CableObserver:
         except (CvBridgeError, TypeError) as e:
             rospy.logwarn(e)
 
+    def update_dataframe(self, spline_params, spline_coords):
+        # Generate dataframe sample for current spline
+        spline_metadata = pd.DataFrame({"control_points_x": [[el for el in spline_params['coeffs'][1]], ],
+                                        "control_points_y": [[el for el in spline_params['coeffs'][0]], ],
+                                        "control_points_z": [[el for el in spline_params['coeffs'][2]], ],
+                                        "points_on_curve_x": [[el for el in spline_coords[:, 1]], ],
+                                        "points_on_curve_y": [[el for el in spline_coords[:, 0]], ],
+                                        "points_on_curve_z": [[el for el in spline_coords[:, 2]], ],
+                                        }, index=[0])
+        spline_metadata.index = [self.df_index]
+        self.df = self.df.append(spline_metadata)
+        self.df_index += 1
+
     def images_callback(self, frame_msg, depth_msg):
         try:
             frame = self.bridge.imgmsg_to_cv2(img_msg=frame_msg, desired_encoding="8UC3")
@@ -128,6 +151,9 @@ class CableObserver:
         depth_msg, pc_msg = self.generate_depth_pcd_msgs(mask_depth=mask_depth, depth=depth)
         self.depth_pub.publish(depth_msg)
         self.pc_pub.publish(pc_msg)
+
+        # Update dataframe
+        self.update_dataframe(spline_params=spline_params, spline_coords=spline_coords)
 
 
 if __name__ == "__main__":
