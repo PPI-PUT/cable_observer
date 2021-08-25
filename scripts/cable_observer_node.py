@@ -18,6 +18,7 @@ from std_srvs.srv import Empty, EmptyResponse
 
 class CableObserver:
     def __init__(self):
+        ns = rospy.get_namespace()
         rospack = rospkg.RosPack()
         stream = open(rospack.get_path('cable_observer') + "/config/params.yaml", 'r')
         self.csv_path = os.path.join(rospack.get_path('cable_observer'), "spline/spline.csv")
@@ -26,13 +27,13 @@ class CableObserver:
         self.last_spline_coords = None
         self.df = pd.DataFrame()
         self.df_index = 0
-        self.srv = rospy.Service("save_df", Empty, self.handle_save_df)
-        self.depth_sub = rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.images_callback)
-        self.coords_pub = rospy.Publisher("/points/prediction", Float64MultiArray, queue_size=1)
-        self.inference_ms_pub = rospy.Publisher("/points/inference_ms", Float64, queue_size=1)
-        self.marker_pub = rospy.Publisher("/points/marker", Marker, queue_size=1)
-        self.depth_pub = rospy.Publisher("/camera/depth/image_depth", Image, queue_size=1)
-        self.pc_pub = rospy.Publisher("/camera/depth/points", PointCloud2, queue_size=1)
+        self.srv = rospy.Service(ns + "save_df", Empty, self.handle_save_df)
+        self.depth_sub = rospy.Subscriber("camera/aligned_depth_to_color/image_raw", Image, self.images_callback)
+        self.coords_pub = rospy.Publisher(ns + "points/prediction", Float64MultiArray, queue_size=1)
+        self.inference_ms_pub = rospy.Publisher(ns + "points/inference_ms", Float64, queue_size=1)
+        self.marker_pub = rospy.Publisher(ns + "points/marker", Marker, queue_size=1)
+        self.depth_pub = rospy.Publisher(ns + "camera/depth/image_depth", Image, queue_size=1)
+        self.pc_pub = rospy.Publisher(ns + "camera/depth/points", PointCloud2, queue_size=1)
 
     def __del__(self, reason="Shutdown"):
         rospy.signal_shutdown(reason=reason)

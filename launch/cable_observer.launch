@@ -4,7 +4,7 @@
 
     <arg name="rvizconfig" default="$(find cable_observer)/config/dlo_3d.rviz" />
 
-    <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" />
+    <node name="cable_observer" pkg="cable_observer" type="cable_observer_node.py" output="screen" ns="put"/>
 
     <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" />
 
