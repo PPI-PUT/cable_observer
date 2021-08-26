@@ -4,9 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Global Options1
-        - /Status1
         - /Marker1/Status1
+        - /ImageDepth1
       Splitter Ratio: 0.5
     Tree Height: 253
   - Class: rviz/Selection
@@ -27,7 +26,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: ImageRGB
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -76,7 +75,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 1
       Style: Spheres
-      Topic: /camera/depth/points
+      Topic: /camera/aligned_depth_to_color/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -86,20 +85,16 @@ Visualization Manager:
       Marker Topic: /put/points/marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
-    - Class: rviz/Image
+    - Class: rviz/Marker
       Enabled: true
-      Image Topic: /camera/depth/image_depth
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: ImageDepth
-      Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
+      Marker Topic: /cdcpd/points/marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
       Value: true
     - Class: rviz/Image
       Enabled: true
@@ -108,6 +103,18 @@ Visualization Manager:
       Median window: 5
       Min Value: 0
       Name: ImageRGB
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /camera/aligned_depth_to_color/image_raw
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: ImageDepth
       Normalize Range: true
       Queue Size: 2
       Transport Hint: raw
@@ -141,7 +148,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1821.99169921875
+      Distance: 541.1756591796875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -149,17 +156,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 551.6846313476562
-        Y: 312.93902587890625
-        Z: 503.93798828125
+        X: 534.1060791015625
+        Y: 338.4459533691406
+        Z: 521.8612670898438
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2197965383529663
+      Pitch: 1.1447968482971191
       Target Frame: <Fixed Frame>
-      Yaw: 2.3486287593841553
+      Yaw: 1.8286254405975342
     Saved: ~
 Window Geometry:
   Displays:
@@ -181,5 +188,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1920
-  X: 1920
-  Y: 14
+  X: 5951
+  Y: 0
