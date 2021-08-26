@@ -21,6 +21,8 @@ class CableObserver:
         ns = rospy.get_namespace()
         rospack = rospkg.RosPack()
         stream = open(rospack.get_path('cable_observer') + "/config/params.yaml", 'r')
+        self.frame_id = rospy.get_param("frame_id")
+        self.visualize = rospy.get_param("visualize")
         self.csv_path = os.path.join(rospack.get_path('cable_observer'), "spline/spline.csv")
         self.params = yaml.load(stream, Loader=yaml.FullLoader)
         self.bridge = CvBridge()
@@ -28,12 +30,13 @@ class CableObserver:
         self.df = pd.DataFrame()
         self.df_index = 0
         self.srv = rospy.Service(ns + "save_df", Empty, self.handle_save_df)
-        self.depth_sub = rospy.Subscriber("camera/aligned_depth_to_color/image_raw", Image, self.images_callback)
+        self.depth_sub = rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.images_callback)
         self.coords_pub = rospy.Publisher(ns + "points/prediction", Float64MultiArray, queue_size=1)
         self.inference_ms_pub = rospy.Publisher(ns + "points/inference_ms", Float64, queue_size=1)
         self.marker_pub = rospy.Publisher(ns + "points/marker", Marker, queue_size=1)
-        self.depth_pub = rospy.Publisher(ns + "camera/depth/image_depth", Image, queue_size=1)
-        self.pc_pub = rospy.Publisher(ns + "camera/depth/points", PointCloud2, queue_size=1)
+        if self.visualize:
+            self.depth_pub = rospy.Publisher(ns + "camera/filtered/depth/image_raw", Image, queue_size=1)
+            self.pc_pub = rospy.Publisher(ns + "camera/filtered/depth/points", PointCloud2, queue_size=1)
 
     def __del__(self, reason="Shutdown"):
         rospy.signal_shutdown(reason=reason)
@@ -62,7 +65,7 @@ class CableObserver:
     def generate_marker_msg(self, arr):
         marker_msg = Marker()
         marker_msg.header.stamp = rospy.Time.now()
-        marker_msg.header.frame_id = self.params["input"]["frame_id"]
+        marker_msg.header.frame_id = self.frame_id
         marker_msg.type = marker_msg.LINE_STRIP
         marker_msg.action = marker_msg.ADD
 
@@ -81,12 +84,12 @@ class CableObserver:
 
         return marker_msg
 
-    def generate_depth_pcd_msgs(self, mask_depth, depth):
+    def generate_depth_pc2_msgs(self, mask_depth, depth):
         try:
             depth[np.where(mask_depth == 0)] = 0
             depth_msg = self.bridge.cv2_to_imgmsg(depth, encoding="16UC1")
             depth_msg.header.stamp = rospy.Time.now()
-            depth_msg.header.frame_id = self.params["input"]["frame_id"]
+            depth_msg.header.frame_id = self.frame_id
             pc_arr = np.array([np.where(depth)[1], np.where(depth)[0], depth[np.where(depth)]])
             output_dtype = np.dtype(
                 {'names': ['x', 'y', 'z'], 'formats': ['<f4', '<f4', '<f4']})
@@ -142,9 +145,10 @@ class CableObserver:
         self.marker_pub.publish(marker_msg)
 
         # Publish depth image & pointcloud
-        depth_msg, pc_msg = self.generate_depth_pcd_msgs(mask_depth=mask_depth, depth=depth)
-        self.depth_pub.publish(depth_msg)
-        self.pc_pub.publish(pc_msg)
+        if self.visualize:
+            depth_msg, pc_msg = self.generate_depth_pc2_msgs(mask_depth=mask_depth, depth=depth)
+            self.depth_pub.publish(depth_msg)
+            self.pc_pub.publish(pc_msg)
 
         # Update dataframe
         self.update_dataframe(spline_params=spline_params, spline_coords=spline_coords)
