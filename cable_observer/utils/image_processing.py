@@ -3,27 +3,11 @@ import numpy as np
 from skimage.morphology import skeletonize
 
 
-def set_mask_3d(depth, params_depth):
-    """
-    Extract cable using depth input.
-    :param depth: camera input depth frame (W x H x 1)
-    :type depth: np.array
-    :param depth_params: depth threshold parameters
-    :type depth_params: dict
-    :return: binary mask (W x H)
-    :rtype: np.array
-    """
-    mask = np.logical_and(depth > params_depth["min"], depth < params_depth["max"]).astype(np.uint8) * 255
-    return mask
-
-
 def set_mask(frame, hsv_params):
     """
     Extract cable using HSV mask.
     :param frame: camera input frame (W x H x 3)
     :type frame: np.array
-    :param hsv_params: hsv threshold parameters
-    :type hsv_params: dict
     :return: binary mask (W x H)
     :rtype: np.array
     """
@@ -109,10 +93,6 @@ def process_image(img):
     idx = np.where(r > 0)
     idx = [[idx[1][i] + x, idx[0][i] + y] for i in range(len(idx[0]))]
     #t4 = time()
-    # In case there is no endpoint, then pick random point on skeleton
-    if len(idx) == 0:
-        idxs = np.where(skel)
-        idx = [[idxs[1][0] + x, idxs[0][0] + y]]
 
     img = np.zeros_like(img)
     img[y:y + h, x:x + w] = skel
@@ -136,12 +116,11 @@ def preprocess_image(img):
     """
     x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
     img_part = img[y:y + h, x:x + w]
-    img_part = cv2.erode(img_part, np.ones((3, 3)))
-    img_part = cv2.dilate(img_part, np.ones((3, 3)))
+    img_part = cv2.erode(img_part, np.ones((3, 3)), iterations=1)
+    img_part = cv2.dilate(img_part, np.ones((3, 3)), iterations=3)
     img = np.zeros_like(img)
     img[y:y + h, x:x + w] = img_part
 
     #img = cv2.erode(img, np.ones((3, 3)))
     #img = cv2.dilate(img, np.ones((3, 3)))
-
-    return img.astype(np.uint8)
+    return img
