@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.interpolate import LSQUnivariateSpline
-import matplotlib.pyplot as plt
 
 
 class Path:
