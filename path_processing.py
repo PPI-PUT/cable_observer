@@ -5,9 +5,18 @@ import numpy as np
 
 class PathProcessing(PathsProcessing):
     def __init__(self):
-        pass
+        self.success = False
 
     def exec(self, mask_image: np.ndarray, paths_ends: list):
+        """
+        Generate paths based on mask image.
+        :param mask_image: 2D mask image
+        :type mask_image: np.array
+        :param paths_ends: list of paths ends
+        :type paths_ends: list
+        :return: spline coordinates, spline parameters
+        :rtype: list, list
+        """
         if len(paths_ends) == 0:
             raise ValueError("Length of paths_ends cannot equal 0.")
 
@@ -31,10 +40,13 @@ class PathProcessing(PathsProcessing):
 
         if len(paths) > 1:
             paths = self.sort_paths(paths)
+        else:
+            paths = [paths]
 
         spline_params = []
         spline_coords = []
         for p in paths:
+            self.success = False
             # Calculate gaps between adjacent paths
             gaps_length = self.get_gaps_length(paths=p)
 
@@ -46,7 +58,13 @@ class PathProcessing(PathsProcessing):
             # Get spline representation for a merged path
             full_length = np.sum([x.length for x in p]) + np.sum(gaps_length)
             merged_path = Path(coordinates=merged_paths, length=full_length)
-            spline_coords.append(merged_path.get_spline(t=t))
+            try:
+                spline_coords.append(merged_path.get_spline(t=t))
+            except Exception as e:
+                print("Performing dilation...")
+                return [], []
+            self.success = True
+
             spline_params.append(merged_path.get_spline_params())
 
         return spline_coords, spline_params

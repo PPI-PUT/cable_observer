@@ -11,7 +11,7 @@ class Segmentation(ABC):
         pass 
 
     @abstractmethod
-    def exec(self, input_image: ndarray) -> ndarray:
+    def exec(self, input_image: ndarray, dilate_it: int) -> ndarray:
         pass
 
 
@@ -103,7 +103,7 @@ class OutputMask(ABC):
         pass
 
     @abstractmethod
-    def exec(self, splines, shape) -> ndarray:
+    def exec(self, splines, shape, dilate_it) -> ndarray:
         pass
 
 

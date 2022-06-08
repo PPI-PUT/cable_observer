@@ -6,16 +6,23 @@ from interfaces import Segmentation
 
 
 class MaskSegmentation(Segmentation):
-    """
-    Implements the segmentation via morphology operations.
-    """
-    def __init__(self, is_masked):
+    def __init__(self, is_masked, hsv_params):
         self.is_masked = is_masked
+        self.hsv_params = hsv_params
         self.paths_ends = None
 
-    def exec(self, input_image: np.ndarray) -> np.ndarray:
+    def exec(self, input_image: np.ndarray, dilate_it: int) -> np.ndarray:
+        """
+        Process input image.
+        :param input_image: 2D image
+        :type input_image: np.array
+        :param dilate_it: initial num of dilation iterations
+        :type dilate_it: int
+        :return: list of paths
+        :rtype: list
+        """
         mask = input_image if self.is_masked else self.set_mask(input_image)
-        mask = self.preprocess_image(mask)
+        mask = self.preprocess_image(mask, iterations=dilate_it)
         result, paths_ends = self.process_image(mask)
         self.paths_ends = paths_ends
         return result
@@ -28,11 +35,21 @@ class MaskSegmentation(Segmentation):
         :return: Preprocessed camera frame (W x H)
         :rtype: np.array
         """
+        h = self.hsv_params['hue']
+        s = self.hsv_params['saturation']
+        v = self.hsv_params['value']
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         o = np.ones_like(hsv)[..., 0].astype(np.float32)
         z = np.zeros_like(o)
-        img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < 8., hsv[..., 0] > 175.), hsv[..., 1] > 130), o, z)
-        return img
+        mask = np.where(np.logical_and(
+            np.logical_and(hsv[..., 0] >= h["min"], hsv[..., 0] <= h["max"]) if h["min"] < h["max"]  # Hue
+            else np.logical_or(hsv[..., 0] >= h["min"], hsv[..., 0] <= h["max"]),
+            np.logical_and(np.logical_and(hsv[..., 1] >= s["min"], hsv[..., 1] <= s["max"]),  # Saturation
+                           np.logical_and(hsv[..., 2] >= v["min"], hsv[..., 2] <= v["max"]))  # Value
+        ),
+            o, z)
+        #img = np.where(np.logical_and(np.logical_or(hsv[..., 0] < hue_upper, hsv[..., 0] > hue_lower), hsv[..., 1] > saturation_upper), o, z)
+        return mask
 
     def get_spline_image(self, spline_coords, shape):
         """
@@ -93,15 +110,15 @@ class MaskSegmentation(Segmentation):
         img[y:y + h, x:x + w] = skel
         return img, idx
 
-    def preprocess_image(self, img):
+    def preprocess_image(self, img, iterations):
         """
         Common function for preprocessing the image. It:
         * finds mask if needed
         * perform morphological open to filter out the noise
         :param img: image or mask
         :type img: np.array
-        :param masked: info whether the mask is needed
-        :type masked: bool
+        :param iterations: erode and dilate iterations
+        :type iterations: int
         :return: masked and filtered image
         :rtype: np.array
         """
@@ -110,11 +127,9 @@ class MaskSegmentation(Segmentation):
 
         x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
         img_part = img[y:y + h, x:x + w]
-        img_part = cv2.erode(img_part, np.ones((3, 3)))
-        img_part = cv2.dilate(img_part, np.ones((3, 3)))
+       # img_part = cv2.erode(img_part, np.ones((3, 3)), iterations=iterations)
+        img_part = cv2.dilate(img_part, np.ones((3, 3)), iterations=iterations)
         img = np.zeros_like(img)
         img[y:y + h, x:x + w] = img_part
 
-        # img = cv2.erode(img, np.ones((3, 3)))
-        # img = cv2.dilate(img, np.ones((3, 3)))
         return img
