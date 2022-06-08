@@ -4,7 +4,11 @@ import numpy as np
 
 
 class PathProcessing(PathsProcessing):
-    def __init__(self):
+    def __init__(self, knots, min_path_length, min_path_points, dir_vec_length):
+        self.knots = knots
+        self.min_path_length = min_path_length
+        self.min_path_points = min_path_points
+        self.dir_vec_length = dir_vec_length
         self.success = False
 
     def exec(self, mask_image: np.ndarray, paths_ends: list):
@@ -27,16 +31,16 @@ class PathProcessing(PathsProcessing):
         i = 0
         while len(paths_ends) > 0:
             coordinates, length = self.walk_faster(skel, tuple(paths_ends[0]))
-            paths.append(Path(coordinates=coordinates, length=length))
+            paths.append(Path(coordinates=coordinates, length=length, knots=self.knots, dir_vec_length=self.dir_vec_length))
             paths_ends.pop(0)
             paths_ends = self.remove_close_points((coordinates[-1][1], coordinates[-1][0]), paths_ends, max_px_gap=1)
             p = paths[-1]
-            if length > 10:
+            if length > self.min_path_length:
                 np.append(paths_coordinates, np.array([[coordinates[:, 1], coordinates[:, 0]]]))
 
         # Get rid of too short paths
-        paths = [p for p in paths if p.num_points > 3]
-        paths = [p for p in paths if p.length > 20.]
+        paths = [p for p in paths if p.num_points > self.min_path_points]
+        #paths = [p for p in paths if p.length > 20.]
 
         if len(paths) > 1:
             paths = self.sort_paths(paths)
@@ -57,7 +61,8 @@ class PathProcessing(PathsProcessing):
             merged_paths = np.vstack([x() for x in p])
             # Get spline representation for a merged path
             full_length = np.sum([x.length for x in p]) + np.sum(gaps_length)
-            merged_path = Path(coordinates=merged_paths, length=full_length)
+            merged_path = Path(coordinates=merged_paths, length=full_length, knots=self.knots,
+                               dir_vec_length=self.dir_vec_length)
             try:
                 spline_coords.append(merged_path.get_spline(t=t))
             except Exception as e:

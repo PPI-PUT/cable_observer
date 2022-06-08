@@ -25,15 +25,15 @@ class SplineMask(OutputMask):
     def __init__(self):
         pass
 
-    def exec(self, splines, shape, dilate_it) -> np.ndarray:
+    def exec(self, splines, shape, output_dilation) -> np.ndarray:
         """
         Visualize spline.
         :param splines: sequence of a spline points
         :type splines: np.array
         :param shape: initial input image shape
         :type shape: tuple
-        :param dilate_it: output mask dilation
-        :type dilate_it: int
+        :param output_dilation: output mask dilation
+        :type output_dilation: int
         :return: 2D image of a spline
         :rtype: np.array
         """
@@ -42,6 +42,6 @@ class SplineMask(OutputMask):
             idxs = np.unique(np.round(spline).astype(np.uint16), axis=0)
             spline_mask[idxs[:, 0], idxs[:, 1]] = colors[key % len(colors) - 1][::-1]
 
-        spline_mask = cv2.dilate(spline_mask, np.ones((3, 3)), iterations=dilate_it)
+        spline_mask = cv2.dilate(spline_mask, np.ones((3, 3)), iterations=output_dilation)
 
         return spline_mask

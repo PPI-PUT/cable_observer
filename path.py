@@ -3,7 +3,9 @@ from scipy.interpolate import LSQUnivariateSpline
 
 
 class Path:
-    def __init__(self, coordinates, length):
+    def __init__(self, coordinates, length, knots, dir_vec_length):
+        if knots < 5:
+            raise ValueError("Num of knots must be > 4.")
         self.coordinates = np.array(coordinates).reshape((-1, 2))
         self.length = length
         self.x_spline = None
@@ -13,14 +15,14 @@ class Path:
         self.end = self.coordinates[-1]
         self.T = np.linspace(0., 1., 128)
         #self.T = np.linspace(0., 1., 4096)
-        self.k = 35
-        self.max_width = 40
-        self.width_step = 4.
-        if self.num_points > 10:
+        self.k = knots
+        # self.max_width = 40
+        # self.width_step = 4.
+        if self.num_points > dir_vec_length:
             #bv = self.coordinates[0] - self.coordinates[5]
             #ev = self.coordinates[-1] - self.coordinates[-6]
-            bv = self.coordinates[0] - self.coordinates[9]
-            ev = self.coordinates[-1] - self.coordinates[-10]
+            bv = self.coordinates[0] - self.coordinates[dir_vec_length-1]
+            ev = self.coordinates[-1] - self.coordinates[-dir_vec_length]
             self.begin_direction = np.arctan2(bv[1], bv[0])
             self.end_direction = np.arctan2(ev[1], ev[0])
 
@@ -40,8 +42,8 @@ class Path:
         Get spline coordinates.
         :param t: path linspace
         :type t: np.array
-        :return: x coordinates, y coordinates, x spline, y spline
-        :rtype: np.array, np.array, np.array, np.array
+        :return: spline coordinates
+        :rtype: np.array
         """
         xys = np.stack(self.coordinates, axis=0)
         k = self.k - 4
@@ -92,47 +94,47 @@ class Path:
 
         return key
 
-    def get_bounds(self, mask, spline_coords, common_width=True):
-        """
-        Find borders of the DLO and its width
-        :param mask: image of the DLO mask
-        :type mask: np.array
-        :param spline_coords: coordinates of the points on the spline fitted to DLO
-        :type spline_coords: np.array
-        :return: lower and upper bound spline coordinates of the DLO
-        :rtype: np.array, np.array
-        """
-        mask = np.pad(mask, [[self.max_width, self.max_width], [self.max_width, self.max_width]], 'constant', constant_values=False)
-        x = spline_coords[:, 0] + self.max_width
-        y = spline_coords[:, 1] + self.max_width
-        normal_emp = np.diff(spline_coords, axis=0)
-        normal_emp = np.stack([-normal_emp[:, 1], normal_emp[:, 0]], axis=-1)
-        normal_emp = normal_emp / np.linalg.norm(normal_emp, axis=-1, keepdims=True)
-        normal_emp = np.concatenate([normal_emp, normal_emp[-1:]], axis=0)
-        x_normal_seq = np.around(x[:, np.newaxis] +
-                                 self.max_width / self.width_step * normal_emp[:, :1]
-                                 * (np.linspace(-1., 1., 2 * self.max_width)[np.newaxis])).astype(np.int32)
-        y_normal_seq = np.around(y[:, np.newaxis] +
-                                 self.max_width / self.width_step * normal_emp[:, -1:]
-                                 * (np.linspace(-1., 1., 2 * self.max_width)[np.newaxis])).astype(np.int32)
-        r = mask[x_normal_seq, y_normal_seq]
-        width = np.sum(r, axis=-1) / self.width_step
-        if common_width:
-            mean_width = np.median(width)
-            ds = normal_emp * mean_width / 2 - 0.5
-            lower_bound = spline_coords + ds
-            upper_bound = spline_coords - ds
-            k = self.k - 4
-            d = int((self.T.shape[0] - 2) / k) + 1
-            knots = self.T[1:-1:d]
-            x_spline = LSQUnivariateSpline(self.T, upper_bound[:, 0], knots)
-            y_spline = LSQUnivariateSpline(self.T, upper_bound[:, 1], knots)
-            upper_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
-            x_spline = LSQUnivariateSpline(self.T, lower_bound[:, 0], knots)
-            y_spline = LSQUnivariateSpline(self.T, lower_bound[:, 1], knots)
-            lower_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
-        else:
-            lower_bound = spline_coords + normal_emp * width[:, np.newaxis] / 2
-            upper_bound = spline_coords - normal_emp * width[:, np.newaxis] / 2
-
-        return lower_bound, upper_bound
+    # def get_bounds(self, mask, spline_coords, common_width=True):
+    #     """
+    #     Find borders of the DLO and its width
+    #     :param mask: image of the DLO mask
+    #     :type mask: np.array
+    #     :param spline_coords: coordinates of the points on the spline fitted to DLO
+    #     :type spline_coords: np.array
+    #     :return: lower and upper bound spline coordinates of the DLO
+    #     :rtype: np.array, np.array
+    #     """
+    #     mask = np.pad(mask, [[self.max_width, self.max_width], [self.max_width, self.max_width]], 'constant', constant_values=False)
+    #     x = spline_coords[:, 0] + self.max_width
+    #     y = spline_coords[:, 1] + self.max_width
+    #     normal_emp = np.diff(spline_coords, axis=0)
+    #     normal_emp = np.stack([-normal_emp[:, 1], normal_emp[:, 0]], axis=-1)
+    #     normal_emp = normal_emp / np.linalg.norm(normal_emp, axis=-1, keepdims=True)
+    #     normal_emp = np.concatenate([normal_emp, normal_emp[-1:]], axis=0)
+    #     x_normal_seq = np.around(x[:, np.newaxis] +
+    #                              self.max_width / self.width_step * normal_emp[:, :1]
+    #                              * (np.linspace(-1., 1., 2 * self.max_width)[np.newaxis])).astype(np.int32)
+    #     y_normal_seq = np.around(y[:, np.newaxis] +
+    #                              self.max_width / self.width_step * normal_emp[:, -1:]
+    #                              * (np.linspace(-1., 1., 2 * self.max_width)[np.newaxis])).astype(np.int32)
+    #     r = mask[x_normal_seq, y_normal_seq]
+    #     width = np.sum(r, axis=-1) / self.width_step
+    #     if common_width:
+    #         mean_width = np.median(width)
+    #         ds = normal_emp * mean_width / 2 - 0.5
+    #         lower_bound = spline_coords + ds
+    #         upper_bound = spline_coords - ds
+    #         k = self.k - 4
+    #         d = int((self.T.shape[0] - 2) / k) + 1
+    #         knots = self.T[1:-1:d]
+    #         x_spline = LSQUnivariateSpline(self.T, upper_bound[:, 0], knots)
+    #         y_spline = LSQUnivariateSpline(self.T, upper_bound[:, 1], knots)
+    #         upper_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+    #         x_spline = LSQUnivariateSpline(self.T, lower_bound[:, 0], knots)
+    #         y_spline = LSQUnivariateSpline(self.T, lower_bound[:, 1], knots)
+    #         lower_bound = np.column_stack((x_spline(self.T), y_spline(self.T)))
+    #     else:
+    #         lower_bound = spline_coords + normal_emp * width[:, np.newaxis] / 2
+    #         upper_bound = spline_coords - normal_emp * width[:, np.newaxis] / 2
+    #
+    #     return lower_bound, upper_bound

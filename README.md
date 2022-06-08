@@ -6,5 +6,6 @@ Presented method is able to run in real-time.
 
 ### Usage
 * See exemplary images in `imgs` directory
-* Run `single_image.py` for tracking on image (one may need to edit the path in the `single_image.py` file)
+* Run `supervisor.py` for tracking on image using example command `python3 supervisor.py -f ./imgs/005.png`
+* For more parameters type `python3 supervisor.py --help`
 

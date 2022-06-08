@@ -103,7 +103,7 @@ class OutputMask(ABC):
         pass
 
     @abstractmethod
-    def exec(self, splines, shape, dilate_it) -> ndarray:
+    def exec(self, splines, shape, output_dilation) -> ndarray:
         pass
 
 
