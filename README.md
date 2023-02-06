@@ -1,58 +1,65 @@
-# DLO Tracking
-## Description
-This repository is an implementation of the DLO tracking algorithm, which given a mask of the DLO,
-returns the B-spline which approximates the shape of the mask.
-Presented method is able to run in real-time.
+# cable_observer
+<!-- Required -->
+<!-- Package description -->
+A node for DLO tracking.
+
+## Installation
+<!-- Required -->
+<!-- Things to consider:
+    - How to build package? 
+    - Are there any other 3rd party dependencies required? -->
+
+```bash
+rosdep install --from-paths src --ignore-src -y
+colcon build --symlink-install --packages-up-to cable_observer
+```
 
 ## Usage
-### Option 1: Using python3 
-* Clone repository
-  ```
-  git clone https://github.com/pkicki/cable_observer
-  ```
-* Download videos from [here](https://drive.google.com/drive/folders/1taSxE8XdUbhhhGJnhtnSJg1tgyOTRgRI?usp=sharing) and put them into `cable_observer/videos/` directory
-* Install necessary dependencies
-  ```
-  pip3 install -r requirements.txt
-  ```
-* Make sure the file `cable_observer.py` is executable
-  ```
-  chmod +x cable_observer.py
-  ```
-* Run `cable_observer.py` for tracking on videos
-  ```
-  ./cable_observer.py --video /path/to/video_file --debug
-  ```
+<!-- Required -->
+<!-- Things to consider:
+    - Launching package. 
+    - Exposed API (example service/action call. -->
 
-### Option 2: Using ROS
-* Clone repository into src directory in the ROS workspace
-  ```
-  git clone https://github.com/pkicki/cable_observer
-  ```
-* Download videos from [here](https://drive.google.com/drive/folders/1taSxE8XdUbhhhGJnhtnSJg1tgyOTRgRI?usp=sharing) and put them into `cable_observer/videos/` directory
-* Install necessary dependencies
-  ```
-  rosdep install --from-path src/cable_observer
-  ```
-* Make sure the file `scripts/cable_observer_node.py` is executable
-  ```
-  chmod +x scripts/cable_observer_node.py
-  ```
-* Run `cable_observer.launch` for tracking on videos
-  ```
-  roslaunch cable_observer cable_observer.launch video:=/path/to/video_file debug:=true
-  ```
-* You may check provided topics `/spline/coeffs` and `/spline/coords` using `rostopic echo /topic/path`
+```bash
+ros2 launch cable_observer cable_observer.launch.py with_rviz:=True
+```
 
-### Available arguments:
-  * `camera` - camera mode (default), you may specify camera ID (corresponding to /dev/videoX)
-  * `video` - video mode, you may specify path to video vile
-  * `images` - images mode, you may specify path to directory
-  * `debug` - run debug mode, default false
-  * `save_dataframe` - save splines metadata, default false
-  * `save_output` - save splines images, default false
+## API
+<!-- Required -->
+<!-- Things to consider:
+    - How do you use the package / API? -->
 
-### Configuration file
-Check the configuration file `config/params.yaml` to tune the parameters.
 
-![Screenshot](example.png)
+### Input
+
+| Name                      | Type                         | Description                         |
+| ------------------------- | ---------------------------- | ----------------------------------- |
+| `/rgb/camera_info`        | sensor_msgs::msg::CameraInfo | RGB camera info.                    |
+| `/rgb/image_raw`          | sensor_msgs::msg::Image      | RGB image.                          |
+| `/depth_to_rgb/image_raw` | sensor_msgs::msg::Image      | Depth image (aligned to RGB image). |
+
+### Output
+
+| Name                     | Type                             | Description               |
+| ------------------------ | -------------------------------- | ------------------------- |
+| `/cable_observer/marker` | visualization_msgs::msg::Marker  | DLO visualization.        |
+| `/cable_observer/coords` | std_msgs::msg::Float64MultiArray | DLO coordinates (x, y, z) |
+
+
+### Parameters
+
+| Name               | Type      | Description                                                  |
+| ------------------ | --------- | ------------------------------------------------------------ |
+| `debug`            | bool      | Print durations.                                             |
+| `depth_ranges`     | list[int] | Depth region of interest.                                    |
+| `depth_scale`      | float     | Depth scalling factor (expecting meters).                    |
+| `hsv_ranges`       | list[int] | HSV color ranges [h_min, s_min, v_min, h_max, s_max, v_max]  |
+| `min_length`       | int       | Minimum lenght (euclidean pxs) for partial paths.            |
+| `num_of_knots`     | int       | Number of knots for output spline.                           |
+| `num_of_pts`       | int       | Number of sampled points for output spline.                  |
+| `vector_dir_len`   | int       | Number of points which describe path direction on path ends. |
+| `z_vertical_shift` | int       | Vertical shift (pxs) between depth and color input           |
+
+
+## References / External links
+<!-- Optional -->

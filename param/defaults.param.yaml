@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    debug: false
+    depth_ranges: [200, 900] # scale depends on sensor
+    depth_scale: 0.001
+    hsv_ranges: [170, 100, 100, 10, 255, 255] # [h_min, s_min, v_min, h_max, s_max, v_max]
+    min_length: 10 # px (euclidean distance)
+    num_of_knots: 25
+    num_of_pts: 256
+    vector_dir_len: 5 # px
+    z_vertical_shift: 5 # px
