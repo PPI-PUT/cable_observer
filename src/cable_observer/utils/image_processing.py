@@ -31,7 +31,7 @@ def set_mask(frame, hsv_params):
     h = hsv_params['hue']
     s = hsv_params['saturation']
     v = hsv_params['value']
-    o = np.ones_like(hsv)[..., 0].astype(np.float32)
+    o = 255 * np.ones_like(hsv)[..., 0].astype(np.uint8)
     z = np.zeros_like(o)
 
     mask = np.where(np.logical_and(
@@ -136,7 +136,7 @@ def preprocess_image(img):
     """
     x, y, w, h = cv2.boundingRect(img.astype(np.uint8))
     img_part = img[y:y + h, x:x + w]
-    img_part = cv2.erode(img_part, np.ones((3, 3)))
+    #img_part = cv2.erode(img_part, np.ones((3, 3)))
     img_part = cv2.dilate(img_part, np.ones((3, 3)))
     img = np.zeros_like(img)
     img[y:y + h, x:x + w] = img_part

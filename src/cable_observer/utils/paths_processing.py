@@ -1,5 +1,5 @@
 from time import time
-from .path import Path
+from path import Path
 import numpy as np
 
 
@@ -320,7 +320,12 @@ def generate_paths(skeleton, depth, paths_ends, params_path):
     skel[1:-1, 1:-1] = skeleton
     while len(paths_ends) > 0:
         coordinates, length = walk_faster(skel, tuple(paths_ends[0]))
-        z_coordinates = depth[coordinates[:, 0], coordinates[:, 1]]
+        mod = np.zeros_like(coordinates[:, 1])
+        #mod = 10 / 1280 * 2 * (1280/2 - coordinates[:, 1])
+        #mod = np.maximum(mod, 0.)
+        mod = np.where(coordinates[:, 0] < 720/2, 10 / 1280 * 2 * (1280/2 - coordinates[:, 1]), mod)
+        z_coordinates = depth[coordinates[:, 0], coordinates[:, 1] + mod.astype(np.int64)]
+        #z_coordinates = depth[coordinates[:, 0], coordinates[:, 1]]
         paths.append(Path(coordinates=coordinates, z_coordinates=z_coordinates, length=length,
                           num_of_knots=params_path['num_of_knots'],
                           num_of_pts=params_path['num_of_pts'],

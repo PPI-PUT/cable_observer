@@ -51,15 +51,24 @@ class Path:
         xys = np.stack(self.coordinates, axis=0)
         zs = self.z_coordinates
         k = self.k - 4
-        d = int((t.shape[0] - 2) / k) + 1
-        knots = t[1:-1:d]
+        #d_ = int((t.shape[0] - 2) / k) + 1
+        d = np.linspace(1., t.shape[0] - 2, k).astype(np.int32)
+        knots = t[d]
+        #knots_ = t[1:-1:d_]
         self.x_spline = LSQUnivariateSpline(t, xys[:, 0], knots)
         self.y_spline = LSQUnivariateSpline(t, xys[:, 1], knots)
         valid = zs != 0
         t_v = t[valid]
-        knots_v = t_v[1:-1:d]
+        #knots_v = t_v[1:-1:d]
+        d = np.linspace(1., t_v.shape[0] - 2, k).astype(np.int32)
+        knots_v = t_v[d]
         z_v = zs[valid]
         self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
+
+        knots_ = np.linspace(0., 1., 23)[1:-1]
+        self.x_spline = LSQUnivariateSpline(self.T, self.x_spline(self.T), knots_)
+        self.y_spline = LSQUnivariateSpline(self.T, self.y_spline(self.T), knots_)
+        self.z_spline = LSQUnivariateSpline(self.T, self.z_spline(self.T), knots_)
         spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T), self.z_spline(self.T)))
         #plt.subplot(221)
         #plt.plot(spline_coords[:, 0], spline_coords[:, 1])

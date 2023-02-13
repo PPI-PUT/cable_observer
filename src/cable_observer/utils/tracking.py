@@ -1,19 +1,27 @@
-from .image_processing import set_mask, process_image, preprocess_image, set_mask_3d
-from .paths_processing import get_gaps_length, get_linspaces, sort_paths, generate_paths, select_paths, \
+from cable_observer.src.cable_observer.utils.utils import plot_paths
+from image_processing import set_mask, process_image, preprocess_image, set_mask_3d
+from paths_processing import get_gaps_length, get_linspaces, sort_paths, generate_paths, select_paths, \
     concatenate_paths, get_paths_and_gaps_length, inverse_path
-from .path import Path
+from path import Path
 import numpy as np
 from time import time
+from matplotlib import pyplot as plt
 
 
 def track(frame, depth, last_spline_coords, params):
     t1 = time()
     # Get mask
-    #mask = frame if not params['input']['color'] else set_mask(frame, params['hsv'])
-    mask_depth = set_mask_3d(depth=depth, params_depth=params['depth'])
+    mask = frame if not params['input']['color'] else set_mask(frame, params['hsv'])
+    # mask_depth = set_mask_3d(depth=depth, params_depth=params['depth'])
 
+    if not np.any(mask):
+        return False, [], [], mask, mask, None, None, [t1]
     # Preprocess image
-    mask = preprocess_image(img=mask_depth)
+    # mask = preprocess_image(img=mask_depth)
+    mask = preprocess_image(img=mask)
+
+    mask[depth > 1000] = 0  # filter out mask elements that are too far away
+    mask[depth < 200] = 0  # filter out mask elements that are too close
 
     # Get image skeleton
     skeleton, paths_ends = process_image(img=mask)
@@ -26,9 +34,23 @@ def track(frame, depth, last_spline_coords, params):
     # Get rid of too short paths
     paths = select_paths(paths=paths, params_path=params['path'])
 
+    # plot_paths(paths)
+    s = skeleton * 255
+    d = depth / np.max(depth)
+    dm = (d * mask).astype(np.uint8)
+    ds = skeleton * d
+
     # Sort paths
     paths = sort_paths(paths=paths)
     t4 = time()
+    #plt.subplot(121)
+    #plt.imshow(d)
+    #for p in paths:
+    #    plt.subplot(121)
+    #    plt.plot(p.coordinates[:, 1], p.coordinates[:, 0])
+    #    plt.subplot(122)
+    #    plt.plot(p.coordinates[:, 0], p.z_coordinates)
+    #plt.show()
 
     # Calculate gaps between adjacent paths
     gaps = get_gaps_length(paths=paths)
@@ -53,5 +75,5 @@ def track(frame, depth, last_spline_coords, params):
     # Find borders of the DLO and its width
     lower_bound, upper_bound = concatenated_paths.get_bounds(mask.astype(bool), spline_coords, common_width=True)
 
-    return spline_coords, spline_params, skeleton.astype(np.float64) * 255, mask, lower_bound, upper_bound, \
-           [t1, t2, t3, t4, t5], mask_depth
+    return True, spline_coords, spline_params, skeleton.astype(np.float64) * 255, mask, lower_bound, upper_bound, \
+           [t1, t2, t3, t4, t5]

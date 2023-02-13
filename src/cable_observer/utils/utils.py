@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 def get_spline_path(img_path):
@@ -34,3 +35,11 @@ def create_spline_dir(kwargs, default_path):
     spline_path = os.path.join(subdataset_path, "spline")
     Path(spline_path).mkdir(parents=True, exist_ok=True)
     return spline_path
+
+
+def plot_paths(paths):
+    c = ['r', 'g', 'b', 'y', 'c', 'm']
+    for i, p in enumerate(paths):
+        plt.plot(p.coordinates[:, 0], p.coordinates[:, 1], c[i % len(c)], label='path {}'.format(i))
+    plt.legend()
+    plt.show()
