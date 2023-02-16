@@ -23,7 +23,8 @@ from numba import njit
 from numba.typed import List, Dict
 from numba.core import types
 from scipy.interpolate import LSQUnivariateSpline
-from sklearn.linear_model import RANSACRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 
 try:
     from utils.frame import Frame
@@ -41,13 +42,15 @@ class DeformableLinearObject:
         self._min_length = np.int64(min_length)
         self._z_vertical_shift = np.int64(z_vertical_shift)
 
-        self._clf = RANSACRegressor()
         self._T = np.linspace(0., 1., num_of_pts, dtype=np.float64)
-        self._spline_idxs = np.linspace(0, num_of_pts - 1, num_of_pts,
-                                        dtype=np.int64)[:, np.newaxis]
-
         self._previous_spline_coords_3d = np.array([], dtype=np.float64)
         self._spline_coords_3d = np.array([], dtype=np.float64)
+
+        spline_idxs = np.linspace(0, num_of_pts - 1, num_of_pts,
+                                        dtype=np.int64)[:, np.newaxis]
+        poly = PolynomialFeatures(degree=4, include_bias=False)
+        self._poly_features = poly.fit_transform(spline_idxs)
+        self._poly_reg_model = LinearRegression()
 
     def execute(self, frame: Frame) -> Dict[str, float]:
         t1 = perf_counter()
@@ -410,7 +413,7 @@ class DeformableLinearObject:
              self.z_spline(self._T)))
 
         # fix z outliers
-        self._clf.fit(self._spline_idxs, spline_coords[2])
-        spline_coords[2] = self._clf.predict(self._spline_idxs)
+        self._poly_reg_model.fit(self._poly_features, spline_coords[2])
+        spline_coords[2] = self._poly_reg_model.predict(self._poly_features)
 
         return spline_coords
