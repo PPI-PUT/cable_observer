@@ -21,8 +21,8 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Point
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CameraInfo
-from std_msgs.msg import Float64MultiArray, MultiArrayDimension
+from sensor_msgs.msg import Image, CameraInfo, PointCloud2
+from sensor_msgs_py.point_cloud2 import create_cloud_xyz32
 from visualization_msgs.msg import Marker
 
 try:
@@ -56,7 +56,7 @@ class CableObserverNode(Node):
         self._tss.registerCallback(self.images_callback)
         self._projection_mat = np.zeros(shape=(3, 2), dtype=np.float64)
         self._marker_pub = self.create_publisher(Marker, 'marker', 10)
-        self._coords_pub = self.create_publisher(Float64MultiArray, 'coords', 10)
+        self._cloud_pub = self.create_publisher(PointCloud2, 'cloud', 10)
 
     def camera_info_callback(self, camera_info_msg: CameraInfo) -> None:
         self._projection_mat[0, 0] = camera_info_msg.p[0]  # fx
@@ -72,16 +72,15 @@ class CableObserverNode(Node):
         spline_coords = self._cable_observer.track(frame=rgb[..., :3], depth=depth)
 
         points_3d = self.coords_to_points_3d(spline_coords.T)
-        # Publish arrays
-        coords_msg = self.generate_2d_array_msg(arr=np.array(
-            [points_3d.T[0], points_3d.T[1], points_3d.T[2]]))
-        self._coords_pub.publish(coords_msg)
 
         # Publish marker
         marker_msg = self.generate_marker_msg(arr=np.array(
             [points_3d.T[0], points_3d.T[1], points_3d.T[2]]))
         self._marker_pub.publish(marker_msg)
-        pass
+
+        # Publish point cloud
+        cloud_msg = create_cloud_xyz32(rgb_msg.header, points_3d)
+        self._cloud_pub.publish(cloud_msg)
 
     def coords_to_points_3d(self, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         z = points[:, 2]
@@ -110,21 +109,6 @@ class CableObserverNode(Node):
         marker_msg.points = [Point(x=point[0], y=point[1], z=point[2]) for point in arr.T]
 
         return marker_msg
-
-    def generate_2d_array_msg(self, arr: npt.NDArray[np.float64]) -> Float64MultiArray:
-        arr_msg = Float64MultiArray()
-        arr_msg.data = np.hstack(arr).tolist()
-        arr_msg.layout.dim = [MultiArrayDimension(), MultiArrayDimension()]
-
-        arr_msg.layout.dim[0].label = 'channels'
-        arr_msg.layout.dim[0].size = arr.shape[0]  # channels
-        arr_msg.layout.dim[0].stride = arr.size  # channels * samples
-
-        arr_msg.layout.dim[1].label = 'samples'
-        arr_msg.layout.dim[1].size = arr.shape[1]  # samples
-        arr_msg.layout.dim[1].stride = arr.shape[1]  # samples
-
-        return arr_msg
 
 
 def main(args=None):
