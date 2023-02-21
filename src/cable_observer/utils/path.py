@@ -65,7 +65,7 @@ class Path:
         z_v = zs[valid]
         self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
 
-        knots_ = np.linspace(0., 1., 23)[1:-1]
+        knots_ = np.linspace(0., 1., self.k - 2)[1:-1]
         self.x_spline = LSQUnivariateSpline(self.T, self.x_spline(self.T), knots_)
         self.y_spline = LSQUnivariateSpline(self.T, self.y_spline(self.T), knots_)
         self.z_spline = LSQUnivariateSpline(self.T, self.z_spline(self.T), knots_)

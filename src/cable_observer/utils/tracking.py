@@ -65,7 +65,8 @@ def track(frame, depth, last_spline_coords, params):
     full_length = get_paths_and_gaps_length(paths=paths, gaps=gaps)
     concatenated_paths = Path(coordinates=concatenated_paths_coords,
                               z_coordinates=concatenated_paths_z_coords,
-                              length=full_length)
+                              length=full_length,
+                              num_of_knots=params['path']['num_of_knots'])
 
     # Inverse path if its needed to maintain direction to the previous iteration
     spline_coords, spline_params = inverse_path(path=concatenated_paths, last_spline_coords=last_spline_coords, t=t,
