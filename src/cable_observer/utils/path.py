@@ -3,6 +3,10 @@ from scipy.interpolate import LSQUnivariateSpline
 
 
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+
+
 class Path:
     def __init__(self, coordinates, z_coordinates, length, num_of_knots=25, num_of_pts=256, max_width=40, width_step=4,
                  vector_dir_len=5):
@@ -65,10 +69,27 @@ class Path:
         z_v = zs[valid]
         self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
 
+
+        poly_reg_model = LinearRegression()
+        poly = PolynomialFeatures(degree=4, include_bias=False)
+
+        # fix z outliers indirectly
+        spline_idxs = self.T[:, np.newaxis]
+        poly_features = poly.fit_transform(spline_idxs)
+        poly_reg_model.fit(poly_features, self.z_spline(self.T))
+
+        # fix z outliers directly
+        #spline_idxs = t_v[:, np.newaxis]
+        #poly_features = poly.fit_transform(spline_idxs)
+        #poly_reg_model.fit(poly_features, z_v)
+
+        z_coords = poly_reg_model.predict(poly_features)
+
         knots_ = np.linspace(0., 1., self.k - 2)[1:-1]
         self.x_spline = LSQUnivariateSpline(self.T, self.x_spline(self.T), knots_)
         self.y_spline = LSQUnivariateSpline(self.T, self.y_spline(self.T), knots_)
-        self.z_spline = LSQUnivariateSpline(self.T, self.z_spline(self.T), knots_)
+        self.z_spline = LSQUnivariateSpline(self.T, z_coords, knots_)
+        #self.z_spline = LSQUnivariateSpline(self.T, self.z_spline(self.T), knots_)
         spline_coords = np.column_stack((self.x_spline(self.T), self.y_spline(self.T), self.z_spline(self.T)))
         #plt.subplot(221)
         #plt.plot(spline_coords[:, 0], spline_coords[:, 1])
