@@ -45,9 +45,11 @@ class DeformableLinearObject:
         self._T = np.linspace(0., 1., num_of_pts, dtype=np.float64)
         self._previous_spline_coords_3d = np.array([], dtype=np.float64)
         self._spline_coords_3d = np.array([], dtype=np.float64)
+        self._spline_coeffs_3d = np.array([], dtype=np.float64)
 
-        spline_idxs = np.linspace(0, num_of_pts - 1, num_of_pts,
-                                        dtype=np.int64)[:, np.newaxis]
+        #spline_idxs = np.linspace(0, num_of_pts - 1, num_of_pts,
+        #                                dtype=np.int64)[:, np.newaxis]
+        spline_idxs = self._T[:, np.newaxis]
         poly = PolynomialFeatures(degree=4, include_bias=False)
         self._poly_features = poly.fit_transform(spline_idxs)
         self._poly_reg_model = LinearRegression()
@@ -98,12 +100,13 @@ class DeformableLinearObject:
             full_path_coords_3d=full_path_coords_3d)
 
         t9 = perf_counter()
-        spline_coords_3d = self.fit_spline(
+        spline_coords_3d, spline_coeffs_3d = self.fit_spline(
             path_coords_3d=full_path_coords_3d, linspace_2d=linspace_2d)
 
         t10 = perf_counter()
-        self._spline_coords_3d = self.validate_spline_order(
-            spline_coords=spline_coords_3d, previous_spline_coords=self._previous_spline_coords_3d)
+        self._spline_coords_3d, self._spline_coeffs_3d = self.validate_spline_order(
+            spline_coords=spline_coords_3d, spline_coeffs=spline_coeffs_3d,
+            previous_spline_coords=self._previous_spline_coords_3d)
 
         t11 = perf_counter()
 
@@ -125,6 +128,10 @@ class DeformableLinearObject:
     @property
     def spline_coords_3d(self) -> npt.NDArray[np.float64]:
         return self._spline_coords_3d
+
+    @property
+    def spline_coeffs_3d(self) -> npt.NDArray[np.float64]:
+        return self._spline_coeffs_3d
 
     def generate_paths(self, frame: Frame) -> Union[List[List[types.int64[:]]],
                                                     List[types.float64]]:
@@ -379,41 +386,57 @@ class DeformableLinearObject:
     @staticmethod
     @njit(target_backend='cuda', fastmath=True)
     def validate_spline_order(spline_coords: npt.NDArray[np.float64],
+                              spline_coeffs: npt.NDArray[np.float64],
                               previous_spline_coords: npt.NDArray[np.float64]) -> \
             npt.NDArray[np.float64]:
         if len(previous_spline_coords) == 0:
-            return spline_coords
+            return spline_coords, spline_coeffs
 
         diff = np.linalg.norm(spline_coords - previous_spline_coords)
         diff_inv = np.linalg.norm(np.fliplr(spline_coords) - previous_spline_coords)
 
         if diff > diff_inv:
-            return np.fliplr(spline_coords)
+            return np.fliplr(spline_coords), np.fliplr(spline_coeffs)
         else:
-            return spline_coords
+            return spline_coords, spline_coeffs
 
     def fit_spline(self, path_coords_3d: List[types.float64[:]],
                    linspace_2d: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         xyz = np.stack(path_coords_3d, axis=1)
         k = self._num_of_knots - 4
-        d = np.int64((linspace_2d.shape[0] - 2) / k) + 1
-        knots = linspace_2d[1:-1:d]
+        #d = np.int64((linspace_2d.shape[0] - 2) / k) + 1
+        #knots = linspace_2d[1:-1:d]
+        d = np.linspace(1., linspace_2d.shape[0] - 2, k).astype(np.int64)
+        knots = linspace_2d[d]
 
         self.x_spline = LSQUnivariateSpline(linspace_2d, xyz[0], knots)
         self.y_spline = LSQUnivariateSpline(linspace_2d, xyz[1], knots)
+        # TODO: check if invalidating too far away z's will help
         valid = xyz[2] != 0
         t_v = linspace_2d[valid]
-        knots_v = t_v[1:-1:d]
+        #knots_v = t_v[1:-1:d]
+        d = np.linspace(1., t_v.shape[0] - 2, k).astype(np.int64)
+        knots_v = t_v[d]
         z_v = xyz[2][valid]
         self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
 
-        spline_coords = np.stack(
-            (self.x_spline(self._T),
-             self.y_spline(self._T),
-             self.z_spline(self._T)))
+        self._poly_reg_model.fit(self._poly_features, self.z_spline(self._T))
+        z_coords = self._poly_reg_model.predict(self._poly_features)
 
-        # fix z outliers
-        self._poly_reg_model.fit(self._poly_features, spline_coords[2])
-        spline_coords[2] = self._poly_reg_model.predict(self._poly_features)
+        knots_ = np.linspace(0., 1., self._num_of_knots)[1:-1]
+        self.x_spline = LSQUnivariateSpline(self._T, self.x_spline(self._T), knots_)
+        self.y_spline = LSQUnivariateSpline(self._T, self.y_spline(self._T), knots_)
+        self.z_spline = LSQUnivariateSpline(self._T, z_coords, knots_)
 
-        return spline_coords
+        spline_coords = np.stack((
+            self.x_spline(self._T),
+            self.y_spline(self._T),
+            self.z_spline(self._T)
+        ))
+
+        spline_coeffs = np.stack((
+            self.x_spline.get_coeffs(),
+            self.y_spline.get_coeffs(),
+            self.z_spline.get_coeffs(),
+        ))
+        return spline_coords, spline_coeffs
