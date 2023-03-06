@@ -142,20 +142,22 @@ class Frame2D(Frame):
                      hsv_ranges: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         mask = np.zeros_like(hsv_img[..., 0], dtype=np.uint8)
 
-        for y in range(hsv_img.shape[0]):
-            for x in range(hsv_img.shape[1]):
-                if hsv_ranges[0] < hsv_ranges[3]:
+        if hsv_ranges[0] < hsv_ranges[3]:
+            for y in range(hsv_img.shape[0]):
+                for x in range(hsv_img.shape[1]):
                     if (hsv_img[y, x, 0] >= hsv_ranges[0] and hsv_img[y, x, 0] <= hsv_ranges[3]) \
-                        and hsv_img[y, x, 1] >= hsv_ranges[1] and \
-                        hsv_img[y, x, 1] <= hsv_ranges[4] \
-                        and hsv_img[y, x, 2] >= hsv_ranges[2] and \
-                            hsv_img[y, x, 2] <= hsv_ranges[5]:
+                        and hsv_img[y, x, 1] >= hsv_ranges[1] \
+                        and hsv_img[y, x, 1] <= hsv_ranges[4] \
+                        and hsv_img[y, x, 2] >= hsv_ranges[2] \
+                        and hsv_img[y, x, 2] <= hsv_ranges[5]:
                         mask[y, x] = 1
-                else:
+        else:
+            for y in range(hsv_img.shape[0]):
+                for x in range(hsv_img.shape[1]):
                     if (hsv_img[y, x, 0] >= hsv_ranges[0] or hsv_img[y, x, 0] <= hsv_ranges[3]) \
-                        and hsv_img[y, x, 1] >= hsv_ranges[1] and \
-                        hsv_img[y, x, 1] <= hsv_ranges[4] \
-                        and hsv_img[y, x, 2] >= hsv_ranges[2] and \
-                            hsv_img[y, x, 2] <= hsv_ranges[5]:
+                        and hsv_img[y, x, 1] >= hsv_ranges[1] \
+                        and hsv_img[y, x, 1] <= hsv_ranges[4] \
+                        and hsv_img[y, x, 2] >= hsv_ranges[2] \
+                        and hsv_img[y, x, 2] <= hsv_ranges[5]:
                         mask[y, x] = 1
         return mask
