@@ -57,6 +57,7 @@ class CableObserverNode(Node):
         self._projection_mat = np.zeros(shape=(3, 2), dtype=np.float64)
         self._marker_pub = self.create_publisher(Marker, 'marker', 10)
         self._cloud_pub = self.create_publisher(PointCloud2, 'cloud', 10)
+        self._mask_pub = self.create_publisher(Image, 'mask', 10)
 
     def camera_info_callback(self, camera_info_msg: CameraInfo) -> None:
         self._projection_mat[0, 0] = camera_info_msg.p[0]  # fx
@@ -81,6 +82,11 @@ class CableObserverNode(Node):
         # Publish point cloud
         cloud_msg = create_cloud_xyz32(rgb_msg.header, points_3d)
         self._cloud_pub.publish(cloud_msg)
+
+        # Publish debug mask
+        mask = self._cable_observer.get_mask()
+        img_msg = self._bridge.cv2_to_imgmsg(mask, encoding='mono8', header=rgb_msg.header)
+        self._mask_pub.publish(img_msg)
 
     def coords_to_points_3d(self, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         z = points[:, 2]

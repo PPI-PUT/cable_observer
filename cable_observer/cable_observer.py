@@ -35,7 +35,7 @@ class CableObserver:
     _coords - standard indexing (x, y) or (x, y, z)
     types:
     np.uint8 (numpy) or types.uint8 (numba) - image pixels values
-    np.int164(numpy) or types.int64 (numba) - array indices
+    np.int64 (numpy) or types.int64 (numba) - array indices
     np.float64 (numpy) or types.float64 (numba) - depth values and rest of floating point values
     """
 
@@ -52,6 +52,9 @@ class CableObserver:
         self._num_of_pts = 256
         self._vector_dir_len = 5
         self._z_vertical_shift = 0
+
+    def get_mask(self):
+        return self._frame3d.mask * 255
 
     def set_parameters(self, **kwargs) -> None:
         for arg in kwargs:
