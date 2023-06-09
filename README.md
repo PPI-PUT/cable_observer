@@ -56,3 +56,15 @@ Presented method is able to run in real-time.
 Check the configuration file `config/params.yaml` to tune the parameters.
 
 ![Screenshot](example.png)
+
+
+### Citing DLOFTBs
+If you find this codebase useful in your research, please consider citing:
+```
+@inproceedings{kicki2023dloftbs,
+    Title={DLOFTBs -- Fast Tracking of Deformable Linear Objects with B-splines},
+    Author={Kicki, Piotr and Szymko, Amadeusz and Walas, Krzysztof},
+    Booktitle = {International Conference on Robotics and Automation (ICRA)},
+    Year = {2023}
+}
+```
