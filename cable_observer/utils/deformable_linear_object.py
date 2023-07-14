@@ -405,7 +405,11 @@ class DeformableLinearObject:
         t_v = linspace_2d[valid]
         knots_v = t_v[1:-1:d]
         z_v = xyz[2][valid]
-        self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
+
+        try:
+            self.z_spline = LSQUnivariateSpline(t_v, z_v, knots_v)
+        except IndexError:
+            self.z_spline = LSQUnivariateSpline(linspace_2d, xyz[2], knots)
 
         spline_coords = np.stack(
             (self.x_spline(self._T),
